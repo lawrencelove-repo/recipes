@@ -144,6 +144,11 @@ button, input, textarea { font-family: inherit; }
   padding: 0;
   background: #fff;
 }
+.list-shell {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
 .list li {
   display: flex;
   align-items: center;
@@ -152,6 +157,72 @@ button, input, textarea { font-family: inherit; }
   border-bottom: 1px solid var(--line);
   cursor: pointer;
 }
+.list-section {
+  display: block !important;
+  background: #f2f2f2;
+  color: #555;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 14px !important;
+  border-bottom: 1px solid #e0e0e0;
+  cursor: default !important;
+  scroll-margin-top: 0;
+}
+.alpha-index {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .screen-list {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+  .screen-list .site-footer {
+    flex-shrink: 0;
+  }
+  .list-shell {
+    overflow: hidden;
+  }
+  .list-shell .list {
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 18px;
+    overscroll-behavior: contain;
+  }
+  .alpha-index {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 12;
+    width: 18px;
+    padding: 4px 0;
+    pointer-events: auto;
+    touch-action: none;
+    user-select: none;
+  }
+  .alpha-index-letter {
+    flex: 0 0 auto;
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.15;
+    font-weight: 600;
+    color: var(--accent-hot);
+    cursor: pointer;
+  }
+}
+
 .thumb {
   width: 52px;
   height: 52px;
@@ -889,8 +960,14 @@ button, input, textarea { font-family: inherit; }
   .list li {
     padding: 12px 28px;
   }
+  .list-section {
+    padding: 6px 28px !important;
+  }
   .list .title {
     font-size: 22px;
+  }
+  .alpha-index {
+    display: none !important;
   }
 
   .detail.detail-layout {

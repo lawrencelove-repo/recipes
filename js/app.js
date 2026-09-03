@@ -349,6 +349,94 @@
       .join("");
   }
 
+  function listIndexKey(title) {
+    const ch = String(title || "")
+      .trim()
+      .charAt(0)
+      .toLocaleUpperCase();
+    if (ch >= "A" && ch <= "Z") return ch;
+    if (ch >= "0" && ch <= "9") return "#";
+    return "#";
+  }
+
+  const ALPHA_INDEX_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
+
+  function alphaIndexHtml(presentKeys) {
+    const letters = ALPHA_INDEX_LETTERS.filter((letter) => presentKeys.has(letter));
+    if (!letters.length) return "";
+    return `<nav class="alpha-index mobile-only" aria-label="Alphabetical index" data-alpha-index>
+      ${letters
+        .map(
+          (letter) =>
+            `<button type="button" class="alpha-index-letter has" data-act="jump-index" data-letter="${letter}">${letter}</button>`
+        )
+        .join("")}
+    </nav>`;
+  }
+
+  function recipeListItemHtml(r, extraAttrs) {
+    const thumb = r.image
+      ? `<div class="thumb has-img"><img src="${h(r.image)}" alt="" loading="lazy"></div>`
+      : `<div class="thumb">${ICONS.fork}</div>`;
+    return `
+      <li data-go="#/recipe/${r.id}" ${extraAttrs || ""}>
+        ${thumb}
+        <div>
+          ${r.source ? `<p class="source">${h(r.source)}</p>` : ""}
+          <p class="title">${h(r.title)}</p>
+        </div>
+      </li>`;
+  }
+
+  function renderIndexedRecipeList(recipes) {
+    if (!recipes.length) {
+      return { html: `<li style="cursor:default">No recipes yet.</li>`, present: new Set() };
+    }
+
+    const alphabetical = state.sort === "title" || state.sort === "title-desc";
+    const present = new Set();
+    const seenAnchor = new Set();
+    let lastKey = null;
+    let html = "";
+
+    for (const r of recipes) {
+      const key = listIndexKey(r.title);
+      present.add(key);
+
+      if (alphabetical) {
+        if (key !== lastKey) {
+          html += `<li class="list-section" id="list-index-${key === "#" ? "num" : key}" data-index-key="${key}">${key}</li>`;
+          lastKey = key;
+        }
+        html += recipeListItemHtml(r);
+      } else {
+        const attrs =
+          !seenAnchor.has(key)
+            ? `id="list-index-${key === "#" ? "num" : key}" data-index-key="${key}"`
+            : "";
+        seenAnchor.add(key);
+        html += recipeListItemHtml(r, attrs);
+      }
+    }
+
+    return { html, present };
+  }
+
+  function jumpToIndexLetter(letter) {
+    const id = letter === "#" ? "list-index-num" : `list-index-${letter}`;
+    const el =
+      app.querySelector(`#${typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id}`) ||
+      app.querySelector(`[data-index-key="${letter}"]`);
+    if (!el) return;
+    const scroller = app.querySelector(".list-shell .list");
+    if (scroller && scroller.contains(el)) {
+      const top = el.offsetTop - scroller.offsetTop;
+      scroller.scrollTo({ top, behavior: "auto" });
+      return;
+    }
+    el.scrollIntoView({ block: "start", behavior: "auto" });
+  }
+
   function listView() {
     const recipes = RecipeDB.listRecipes({
       search: state.search,
@@ -356,24 +444,10 @@
       favoritesOnly: state.favoritesOnly,
     });
     const count = recipes.length;
-    const rows = recipes
-      .map((r) => {
-        const thumb = r.image
-          ? `<div class="thumb has-img"><img src="${h(r.image)}" alt="" loading="lazy"></div>`
-          : `<div class="thumb">${ICONS.fork}</div>`;
-        return `
-        <li data-go="#/recipe/${r.id}">
-          ${thumb}
-          <div>
-            ${r.source ? `<p class="source">${h(r.source)}</p>` : ""}
-            <p class="title">${h(r.title)}</p>
-          </div>
-        </li>`;
-      })
-      .join("");
+    const indexed = renderIndexedRecipeList(recipes);
 
     return `
-      <div class="screen">
+      <div class="screen screen-list">
         ${drawerHtml()}
         ${deskHeader("list")}
         ${deskSubnav("list")}
@@ -390,7 +464,10 @@
         </div>
         ${state.sortOpen ? sortSheet() : ""}
         ${state.filterOpen ? filterSheet() : ""}
-        <ul class="list">${rows || `<li style="cursor:default">No recipes yet.</li>`}</ul>
+        <div class="list-shell">
+          <ul class="list">${indexed.html}</ul>
+          ${alphaIndexHtml(indexed.present)}
+        </div>
         ${siteFooter()}
       </div>`;
   }
@@ -861,6 +938,9 @@
       const recipe = RecipeDB.getRecipe(id);
       if (recipe) state.search = recipe.title;
       go(`#/recipe/${id}`);
+    } else if (act === "jump-index") {
+      const letter = actEl.getAttribute("data-letter");
+      if (letter) jumpToIndexLetter(letter);
     } else if (act === "search-submit") {
       state.suggestOpen = false;
       state.suggestIndex = -1;
@@ -995,6 +1075,50 @@
     state.suggestIndex = -1;
     patchSearchSuggest();
   });
+
+  function letterFromIndexPointer(nav, clientY) {
+    const buttons = [...nav.querySelectorAll(".alpha-index-letter")];
+    if (!buttons.length) return "";
+    const rect = nav.getBoundingClientRect();
+    if (rect.height <= 0) return "";
+    const ratio = (clientY - rect.top) / rect.height;
+    const idx = Math.max(0, Math.min(buttons.length - 1, Math.floor(ratio * buttons.length)));
+    return buttons[idx].getAttribute("data-letter") || "";
+  }
+
+  let alphaScrubbing = false;
+  app.addEventListener(
+    "pointerdown",
+    (e) => {
+      const nav = e.target.closest("[data-alpha-index]");
+      if (!nav) return;
+      alphaScrubbing = true;
+      try {
+        nav.setPointerCapture(e.pointerId);
+      } catch (_) {
+        /* ignore */
+      }
+      const letter = letterFromIndexPointer(nav, e.clientY);
+      if (letter) jumpToIndexLetter(letter);
+    },
+    { passive: true }
+  );
+  app.addEventListener(
+    "pointermove",
+    (e) => {
+      if (!alphaScrubbing) return;
+      const nav = e.target.closest("[data-alpha-index]") || app.querySelector("[data-alpha-index]");
+      if (!nav) return;
+      const letter = letterFromIndexPointer(nav, e.clientY);
+      if (letter) jumpToIndexLetter(letter);
+    },
+    { passive: true }
+  );
+  function endAlphaScrub() {
+    alphaScrubbing = false;
+  }
+  app.addEventListener("pointerup", endAlphaScrub);
+  app.addEventListener("pointercancel", endAlphaScrub);
 
   async function start() {
     const r = routeFromHash();

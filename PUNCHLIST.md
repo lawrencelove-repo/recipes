@@ -18,6 +18,9 @@ Status for the first slice of the recipe site (static HTML/JS on GitHub Pages, S
 - [x] Image URL field + list/detail thumbnails when present
 - [x] Sidebar shell (search, nav placeholders, last-synced)
 - [x] Desktop RWD: wider centered layout, Pepperplate-style header/subnav, recipe detail two-column with actions + live scale sidebar
+- [x] Disclaimer page + footer link (non-affiliation / personal non-commercial)
+- [x] Soft cookie password gate (static-host deterrent only; passphrase is not a true secret)
+- [x] Host recipe photos locally under `images/` instead of Pepperplate CDN URLs
 
 ## Deferred (called out in screenshots or likely next)
 
@@ -34,3 +37,5 @@ Status for the first slice of the recipe site (static HTML/JS on GitHub Pages, S
 ## Hosting notes
 
 GitHub Pages is static, so SQLite runs **in the browser** (sql.js). Edits are saved in **this browser’s IndexedDB**, not in the GitHub repo. Seed data ships with the site. Until GitHub auth/API write-back exists, treat **downloadable recipe files** as the bridge from phone edits back into the repo (see deferred export item above).
+
+The site password cookie is a **soft gate** only. Anyone can still open public files such as `js/seed-data.js` or `images/*` directly from the repo or Pages URL.

@@ -3,7 +3,7 @@
   const IDB_STORE = "kv";
   const DB_KEY = "database";
   // Bump when schema or shipped seed set changes (forces local DB rebuild).
-  const SCHEMA_VERSION = 2;
+  const SCHEMA_VERSION = 3;
 
   const SEED_SQL = `
     CREATE TABLE IF NOT EXISTS meta (

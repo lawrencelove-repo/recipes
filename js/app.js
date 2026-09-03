@@ -30,6 +30,11 @@
     search: '<svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>',
   };
 
+  const GATE_COOKIE = "recipes_gate";
+  // SHA-256 of the site gate passphrase. This is only a soft deterrent on a static host.
+  const GATE_HASH =
+    "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8";
+
   const state = {
     view: "list",
     recipeId: null,
@@ -44,17 +49,55 @@
     scalePick: 1,
     cookScale: 1,
     detailScale: 1,
+    suggestIndex: -1,
+    suggestOpen: false,
     editTab: 0,
     editDraft: null,
     editError: "",
     toast: "",
     placeholder: "",
+    gateError: "",
   };
 
   const app = document.getElementById("app");
 
   function h(s) {
     return RecipeParser.escapeHtml(s == null ? "" : s);
+  }
+
+  function getCookie(name) {
+    const parts = document.cookie.split(";").map((p) => p.trim());
+    for (const part of parts) {
+      const i = part.indexOf("=");
+      if (i === -1) continue;
+      if (part.slice(0, i) === name) return decodeURIComponent(part.slice(i + 1));
+    }
+    return "";
+  }
+
+  function isAuthed() {
+    return getCookie(GATE_COOKIE) === "1";
+  }
+
+  function setGateCookie() {
+    const maxAge = 60 * 60 * 24 * 365;
+    document.cookie = `${GATE_COOKIE}=1; path=/; max-age=${maxAge}; SameSite=Lax`;
+  }
+
+  async function passwordMatches(password) {
+    const data = new TextEncoder().encode(String(password || ""));
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    const hex = Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return hex === GATE_HASH;
+  }
+
+  function siteFooter() {
+    return `<footer class="site-footer">
+      <a href="#/disclaimer" data-go="#/disclaimer">Disclaimer</a>
+      <span>Personal, non-commercial use · Unofficial / not affiliated with Pepperplate</span>
+    </footer>`;
   }
 
   function formatShortDate(iso) {
@@ -65,6 +108,30 @@
     const dd = String(d.getDate()).padStart(2, "0");
     const yy = String(d.getFullYear()).slice(-2);
     return `${mm}/${dd}/${yy}`;
+  }
+
+  function getSearchSuggestions(query) {
+    const q = String(query || "")
+      .trim()
+      .toLowerCase();
+    if (!q) return [];
+    return RecipeDB.listRecipes({ sort: "title" })
+      .filter((r) => r.title.toLowerCase().includes(q))
+      .slice(0, 10);
+  }
+
+  function searchSuggestHtml() {
+    if (!state.suggestOpen) return "";
+    const items = getSearchSuggestions(state.search);
+    if (!items.length) {
+      return `<ul class="search-suggest" role="listbox"><li class="search-suggest-empty">No matching recipes</li></ul>`;
+    }
+    return `<ul class="search-suggest" role="listbox">${items
+      .map(
+        (r, i) =>
+          `<li role="option" class="${i === state.suggestIndex ? "on" : ""}" data-act="suggest" data-id="${r.id}">${h(r.title)}</li>`
+      )
+      .join("")}</ul>`;
   }
 
   function deskHeader(active) {
@@ -86,10 +153,13 @@
               )
               .join("")}
           </nav>
-          <label class="desk-search">
-            <input type="search" placeholder="Search recipes" value="${h(state.search)}" data-act="desk-search">
-            <span class="desk-search-icon">${ICONS.search}</span>
-          </label>
+          <div class="desk-search" data-search-wrap>
+            <div class="desk-search-row">
+              <input type="search" placeholder="Search recipes" value="${h(state.search)}" data-act="desk-search" autocomplete="off" aria-autocomplete="list">
+              <button type="button" class="desk-search-btn" data-act="search-submit" title="Search">${ICONS.search}</button>
+            </div>
+            ${searchSuggestHtml()}
+          </div>
         </div>
       </header>`;
   }
@@ -177,6 +247,7 @@
     if (["menus", "planner", "shopping", "settings"].includes(parts[0])) {
       return { view: "soon", name: parts[0] };
     }
+    if (parts[0] === "disclaimer") return { view: "disclaimer" };
     return { view: "list" };
   }
 
@@ -193,6 +264,8 @@
     state.sortOpen = false;
     state.filterOpen = false;
     state.cookOpen = false;
+    state.suggestOpen = false;
+    state.suggestIndex = -1;
     if (r.view === "cook") state.cookScale = r.scale || 1;
     if (r.view === "detail") state.detailScale = 1;
     if (r.view === "edit") {
@@ -318,6 +391,7 @@
         ${state.sortOpen ? sortSheet() : ""}
         ${state.filterOpen ? filterSheet() : ""}
         <ul class="list">${rows || `<li style="cursor:default">No recipes yet.</li>`}</ul>
+        ${siteFooter()}
       </div>`;
   }
 
@@ -354,7 +428,10 @@
     ];
     return `<div class="drawer">
       <div class="drawer-panel">
-        <input type="search" placeholder="Search Recipes" value="${h(state.search)}" data-act="search">
+        <div class="drawer-search" data-search-wrap>
+          <input type="search" placeholder="Search Recipes" value="${h(state.search)}" data-act="search" autocomplete="off" aria-autocomplete="list">
+          ${searchSuggestHtml()}
+        </div>
         ${nav
           .map(
             ([href, label, icon, home]) =>
@@ -423,6 +500,7 @@
           ${detailAside(recipe)}
         </div>
         ${state.cookOpen ? cookModal(recipe) : ""}
+        ${siteFooter()}
       </div>`;
   }
 
@@ -469,6 +547,7 @@
           <div class="section-label">INSTRUCTIONS</div>
           ${renderInstructions(inst)}
         </div>
+        ${siteFooter()}
       </div>`;
   }
 
@@ -544,6 +623,48 @@
         <div class="pager mobile-only">
           ${[0, 1, 2].map((i) => `<button class="${state.editTab === i ? "on" : ""}" data-act="tab" data-tab="${i}"></button>`).join("")}
         </div>
+        ${siteFooter()}
+      </div>`;
+  }
+
+  function disclaimerView() {
+    return `
+      <div class="screen">
+        ${drawerHtml()}
+        ${deskHeader("soon")}
+        ${deskSubnav("list")}
+        <header class="topbar mobile-only">
+          <button class="icon-btn circle" data-go="#/">${ICONS.back}</button>
+          <h1>Disclaimer</h1>
+          <span></span>
+        </header>
+        <article class="disclaimer">
+          <h2>Disclaimer</h2>
+          <p>This site is an unofficial personal recipe collection for <strong>private, non-commercial</strong> use.</p>
+          <p>It is <strong>not affiliated with, endorsed by, or connected to Pepperplate</strong> (or any related company). The workflow and layout were inspired by Pepperplate’s product, but this project is independent.</p>
+          <p>Recipe text and photographs on this site are the site owner’s own materials (or are used with permission). Photos previously hosted on Pepperplate were originally taken and uploaded by the site owner and are now stored with this project.</p>
+          <p>This project is provided <strong>as-is</strong>, without warranty. If you found this repository by accident, please treat it as a personal notebook rather than a public service or commercial product.</p>
+          <p class="disclaimer-note">Access to the recipe app may be limited by a simple password cookie. On a static GitHub Pages host that gate is only a soft deterrent, not strong security.</p>
+          <p><a href="#/" data-go="#/">Back to recipes</a></p>
+        </article>
+        ${siteFooter()}
+      </div>`;
+  }
+
+  function gateView() {
+    return `
+      <div class="gate">
+        <form class="gate-card" data-form="gate">
+          <h1>Recipes</h1>
+          <p>Personal collection. Enter the site password to continue.</p>
+          ${state.gateError ? `<div class="gate-error">${h(state.gateError)}</div>` : ""}
+          <label>
+            <span>Password</span>
+            <input type="password" name="password" autocomplete="current-password" required autofocus>
+          </label>
+          <button type="submit" class="btn-primary">Enter</button>
+          <p class="gate-disclaimer"><a href="#/disclaimer" data-go="#/disclaimer">Disclaimer</a></p>
+        </form>
       </div>`;
   }
 
@@ -563,12 +684,42 @@
           <h2>${h(labels[name] || name)}</h2>
           <p>Not built yet — see the punch list.</p>
         </div>
+        ${siteFooter()}
       </div>`;
+  }
+
+  let dbReady = false;
+
+  async function ensureDb() {
+    if (dbReady) return;
+    await RecipeDB.init();
+    dbReady = true;
   }
 
   function render() {
     const r = routeFromHash();
     state.view = r.view;
+
+    if (!isAuthed() && r.view !== "disclaimer") {
+      app.innerHTML = gateView();
+      return;
+    }
+
+    if (r.view === "disclaimer") {
+      app.innerHTML = disclaimerView();
+      return;
+    }
+
+    if (!dbReady) {
+      app.innerHTML = `<div class="loading">Recipes</div>`;
+      ensureDb()
+        .then(() => render())
+        .catch((err) => {
+          app.innerHTML = `<div class="soon"><h2>Could not start</h2><p>${h(err.message)}</p></div>`;
+        });
+      return;
+    }
+
     if (r.view === "list") app.innerHTML = listView();
     else if (r.view === "detail") app.innerHTML = detailView();
     else if (r.view === "edit") {
@@ -598,6 +749,31 @@
     const ta = app.querySelector("[data-field]");
     if (ta) state.editDraft[ta.getAttribute("data-field")] = ta.value;
   }
+
+  app.addEventListener("submit", async (e) => {
+    const form = e.target.closest("[data-form=gate]");
+    if (!form) return;
+    e.preventDefault();
+    const password = new FormData(form).get("password") || "";
+    const ok = await passwordMatches(password);
+    if (!ok) {
+      state.gateError = "Incorrect password.";
+      render();
+      return;
+    }
+    state.gateError = "";
+    setGateCookie();
+    app.innerHTML = `<div class="loading">Recipes</div>`;
+    try {
+      await ensureDb();
+      const r = routeFromHash();
+      if (r.view === "edit") state.editDraft = loadDraft(r.recipeId);
+      if (r.view === "cook") state.cookScale = r.scale || 1;
+      render();
+    } catch (err) {
+      app.innerHTML = `<div class="soon"><h2>Could not start</h2><p>${h(err.message)}</p></div>`;
+    }
+  });
 
   app.addEventListener("click", async (e) => {
     const goEl = e.target.closest("[data-go]");
@@ -677,6 +853,19 @@
       } else {
         prompt("Copy this link:", url);
       }
+    } else if (act === "suggest") {
+      const id = Number(actEl.getAttribute("data-id"));
+      state.suggestOpen = false;
+      state.suggestIndex = -1;
+      state.drawer = false;
+      const recipe = RecipeDB.getRecipe(id);
+      if (recipe) state.search = recipe.title;
+      go(`#/recipe/${id}`);
+    } else if (act === "search-submit") {
+      state.suggestOpen = false;
+      state.suggestIndex = -1;
+      if (state.view !== "list") go("#/");
+      else render();
     } else if (act === "soon") {
       alert((actEl.getAttribute("data-soon") || "This action") + " is on the punch list and is not implemented yet.");
     } else if (act === "timer") {
@@ -707,41 +896,119 @@
     }
   });
 
-  app.addEventListener("input", (e) => {
-    if (e.target.matches("[data-act=search], [data-act=desk-search]")) {
-      const pos = e.target.selectionStart;
-      state.search = e.target.value;
-      if (state.view !== "list") {
-        // Keep typing in header search; apply when on list.
-        return;
-      }
-      render();
-      const el = app.querySelector("[data-act=search], [data-act=desk-search]");
-      const match = app.querySelector(`[data-act="${e.target.getAttribute("data-act")}"]`);
-      if (match) {
-        match.focus();
-        if (typeof pos === "number") match.setSelectionRange(pos, pos);
+  function patchSearchSuggest() {
+    const html = searchSuggestHtml();
+    app.querySelectorAll("[data-search-wrap]").forEach((wrap) => {
+      const existing = wrap.querySelector(".search-suggest");
+      if (existing) existing.remove();
+      if (html) wrap.insertAdjacentHTML("beforeend", html);
+    });
+  }
+
+  function focusSearchInput(act, pos) {
+    const match = app.querySelector(`[data-act="${act}"]`);
+    if (match) {
+      match.focus();
+      if (typeof pos === "number") {
+        try {
+          match.setSelectionRange(pos, pos);
+        } catch (_) {
+          /* search inputs may reject setSelectionRange in some browsers */
+        }
       }
     }
+  }
+
+  app.addEventListener("input", (e) => {
+    if (!e.target.matches("[data-act=search], [data-act=desk-search]")) return;
+    const pos = e.target.selectionStart;
+    const act = e.target.getAttribute("data-act");
+    state.search = e.target.value;
+    state.suggestOpen = state.search.trim().length > 0;
+    state.suggestIndex = -1;
+
+    if (state.view === "list" && act === "search") {
+      // Drawer search: keep drawer open and refresh list + suggestions.
+      state.drawer = true;
+      render();
+      focusSearchInput(act, pos);
+      return;
+    }
+
+    if (state.view === "list" && act === "desk-search") {
+      render();
+      focusSearchInput(act, pos);
+      return;
+    }
+
+    // Other views: update dropdown without leaving the page.
+    patchSearchSuggest();
   });
 
   app.addEventListener("keydown", (e) => {
-    if (e.target.matches("[data-act=search]") && e.key === "Enter") {
-      state.drawer = false;
-      render();
-    }
-    if (e.target.matches("[data-act=desk-search]") && e.key === "Enter") {
+    const isSearch = e.target.matches("[data-act=search], [data-act=desk-search]");
+    if (!isSearch) return;
+
+    const suggestions = getSearchSuggestions(state.search);
+    if (state.suggestOpen && suggestions.length && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       e.preventDefault();
+      if (e.key === "ArrowDown") {
+        state.suggestIndex = (state.suggestIndex + 1) % suggestions.length;
+      } else {
+        state.suggestIndex =
+          state.suggestIndex <= 0 ? suggestions.length - 1 : state.suggestIndex - 1;
+      }
+      patchSearchSuggest();
+      return;
+    }
+
+    if (e.key === "Escape") {
+      state.suggestOpen = false;
+      state.suggestIndex = -1;
+      patchSearchSuggest();
+      return;
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (state.suggestOpen && state.suggestIndex >= 0 && suggestions[state.suggestIndex]) {
+        const recipe = suggestions[state.suggestIndex];
+        state.suggestOpen = false;
+        state.suggestIndex = -1;
+        state.drawer = false;
+        state.search = recipe.title;
+        go(`#/recipe/${recipe.id}`);
+        return;
+      }
+      state.suggestOpen = false;
+      state.suggestIndex = -1;
+      state.drawer = false;
       if (state.view !== "list") go("#/");
       else render();
     }
   });
 
+  document.addEventListener("click", (e) => {
+    if (!state.suggestOpen) return;
+    if (e.target.closest("[data-search-wrap]")) return;
+    state.suggestOpen = false;
+    state.suggestIndex = -1;
+    patchSearchSuggest();
+  });
+
   async function start() {
+    const r = routeFromHash();
+    if (!isAuthed() && r.view !== "disclaimer") {
+      app.innerHTML = gateView();
+      return;
+    }
+    if (r.view === "disclaimer") {
+      app.innerHTML = disclaimerView();
+      return;
+    }
     app.innerHTML = `<div class="loading">Recipes</div>`;
     try {
-      await RecipeDB.init();
-      const r = routeFromHash();
+      await ensureDb();
       state.view = r.view;
       state.recipeId = r.recipeId || null;
       if (r.view === "edit") state.editDraft = loadDraft(r.recipeId);

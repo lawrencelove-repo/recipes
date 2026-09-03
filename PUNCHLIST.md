@@ -23,6 +23,7 @@ Status for the first slice of the recipe site (static HTML/JS on GitHub Pages, S
 - [x] Host recipe photos locally under `images/` instead of Pepperplate CDN URLs
 - [x] `enabled` flag: stubs without ingredients seed as disabled; list hides them by default; filter + edit/detail toggles to enable/disable any recipe
 - [x] Recipe photo upload (desktop): choose/remove image on edit; stored in browser IndexedDB; optional “Download for repo” to save under `images/`
+- [x] Settings screen with **Export recipes** → Pepperplate-style `.txt` files into `exports/` (directory picker or zip fallback)
 
 ## Deferred (called out in screenshots or likely next)
 

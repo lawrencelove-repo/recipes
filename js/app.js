@@ -58,6 +58,8 @@
     toast: "",
     placeholder: "",
     gateError: "",
+    exportStatus: "",
+    exportBusy: false,
   };
 
   const app = document.getElementById("app");
@@ -144,6 +146,7 @@
       ["#/menus", "menus", "soon"],
       ["#/planner", "planner", "soon"],
       ["#/shopping", "shopping", "soon"],
+      ["#/settings", "settings", "settings"],
     ];
     return `
       <header class="desk-header desktop-only">
@@ -251,7 +254,8 @@
       if (parts[2] === "cook") return { view: "cook", recipeId: id, scale: Number(params.get("scale") || 1) };
       return { view: "detail", recipeId: id };
     }
-    if (["menus", "planner", "shopping", "settings"].includes(parts[0])) {
+    if (parts[0] === "settings") return { view: "settings" };
+    if (["menus", "planner", "shopping"].includes(parts[0])) {
       return { view: "soon", name: parts[0] };
     }
     if (parts[0] === "disclaimer") return { view: "disclaimer" };
@@ -609,7 +613,11 @@
         ${nav
           .map(
             ([href, label, icon, home]) =>
-              `<button class="nav-item ${home && state.view === "list" ? "active" : ""}" data-go="${href}">${icon}${label}</button>`
+              `<button class="nav-item ${
+                (home && state.view === "list") || (label === "Settings" && state.view === "settings")
+                  ? "active"
+                  : ""
+              }" data-go="${href}">${icon}${label}</button>`
           )
           .join("")}
         <div class="drawer-foot">Last synced ${h(RecipeDB.lastSyncedLabel())}</div>
@@ -850,8 +858,47 @@
       </div>`;
   }
 
+  function settingsView() {
+    const total = RecipeDB.listRecipes({ enabledMode: "all" }).length;
+    const enabled = RecipeDB.listRecipes({ enabledMode: "enabled" }).length;
+    const disabled = RecipeDB.listRecipes({ enabledMode: "disabled" }).length;
+    return `
+      <div class="screen screen-settings">
+        ${drawerHtml()}
+        ${deskHeader("settings")}
+        ${deskSubnav("list")}
+        <header class="topbar mobile-only">
+          <button class="icon-btn" data-act="drawer">${ICONS.menu}</button>
+          <h1>Settings</h1>
+          <span></span>
+        </header>
+        <div class="settings">
+          <h2>Settings</h2>
+          <section class="settings-card">
+            <h3>Export recipes</h3>
+            <p>
+              Writes every recipe currently in the browser database as individual Pepperplate-style
+              <code>.txt</code> files (same shape as <code>data/</code>), intended for the
+              <code>exports/</code> folder.
+            </p>
+            <p class="settings-meta">${total} recipes in database (${enabled} enabled, ${disabled} disabled)</p>
+            <button type="button" class="btn-primary-inline" data-act="export-recipes" ${state.exportBusy ? "disabled" : ""}>
+              ${state.exportBusy ? "Exporting…" : "Export recipes"}
+            </button>
+            ${state.exportStatus ? `<p class="settings-status">${h(state.exportStatus)}</p>` : ""}
+            <p class="settings-help">
+              On desktop Chrome/Edge, you will be asked to choose a folder — pick the project
+              <code>exports</code> folder (or the repo root and an <code>exports</code> folder will be created).
+              If the folder picker is unavailable or cancelled, a <code>recipes-exports.zip</code> download is offered instead; extract it into <code>exports/</code>.
+            </p>
+          </section>
+        </div>
+        ${siteFooter()}
+      </div>`;
+  }
+
   function soonView(name) {
-    const labels = { menus: "Menus", planner: "Planner", shopping: "Shopping List", settings: "Settings" };
+    const labels = { menus: "Menus", planner: "Planner", shopping: "Shopping List" };
     return `
       <div class="screen">
         ${drawerHtml()}
@@ -911,7 +958,8 @@
     } else if (r.view === "cook") {
       state.cookScale = r.scale || 1;
       app.innerHTML = cookView();
-    } else app.innerHTML = soonView(r.name);
+    } else if (r.view === "settings") app.innerHTML = settingsView();
+    else app.innerHTML = soonView(r.name);
 
     RecipeImages.hydrate(app).catch(() => {});
   }
@@ -1045,6 +1093,28 @@
         await RecipeDB.toggleEnabled(recipe.id, !recipe.enabled);
         render();
       }
+    } else if (act === "export-recipes") {
+      if (state.exportBusy) return;
+      state.exportBusy = true;
+      state.exportStatus = "Preparing export…";
+      render();
+      try {
+        const recipes = RecipeDB.listRecipes({ enabledMode: "all", sort: "title" });
+        const result = await RecipeExport.exportAllRecipes(recipes, { preferDirectory: true });
+        if (result.mode === "directory") {
+          state.exportStatus = `Exported ${result.count} recipe file(s) to the “${result.folder}” folder.`;
+        } else {
+          state.exportStatus = `Downloaded zip with ${result.count} recipe file(s). Extract into the project’s exports/ folder.`;
+        }
+      } catch (err) {
+        if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) {
+          state.exportStatus = "Export cancelled.";
+        } else {
+          state.exportStatus = err.message || String(err);
+        }
+      }
+      state.exportBusy = false;
+      render();
     } else if (act === "print") {
       window.print();
     } else if (act === "share") {

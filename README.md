@@ -68,6 +68,15 @@ After that, the photo is part of the site for every visitor/device, not only the
 
 You can leave `local:{id}` for personal-only drafts; use **Download for repo** when you want the image in git and on GitHub Pages.
 
+## Export recipes
+
+**Settings → Export recipes** writes every recipe in the browser database as individual Pepperplate-style `.txt` files (same shape as `data/`).
+
+- Prefer choosing the project’s **`exports/`** folder in the directory picker (Chrome/Edge desktop).
+- If the picker is unavailable, download **`recipes-exports.zip`** and extract it into `exports/`.
+
+`data/` remains the seed/source import tree; `exports/` is for database snapshots you can compare or copy back.
+
 ## Related docs
 
 - [PUNCHLIST.md](PUNCHLIST.md) — feature status and deferred work  

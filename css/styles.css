@@ -814,6 +814,66 @@ button, input, textarea { font-family: inherit; }
   font-size: 14px;
 }
 
+.settings {
+  padding: 20px 18px 40px;
+  max-width: 720px;
+}
+.settings h2 {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 32px;
+  margin: 0 0 18px;
+}
+.settings-card {
+  border: 1px solid var(--line);
+  padding: 18px 16px;
+  background: #fff;
+}
+.settings-card h3 {
+  margin: 0 0 10px;
+  letter-spacing: 0.08em;
+  font-size: 13px;
+  color: #555;
+  text-transform: uppercase;
+}
+.settings-card p {
+  margin: 0 0 12px;
+  color: #444;
+  line-height: 1.5;
+  font-size: 14px;
+}
+.settings-meta {
+  color: #777 !important;
+  font-size: 13px !important;
+}
+.settings-help {
+  margin-top: 14px !important;
+  color: #777 !important;
+  font-size: 12px !important;
+}
+.settings-help code,
+.settings-card code {
+  font-size: 12px;
+}
+.settings-status {
+  color: #1a7a3a !important;
+  font-size: 13px !important;
+}
+.settings-card .btn-primary-inline {
+  border: none;
+  padding: 10px 18px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: var(--accent-hot);
+  color: #fff;
+}
+.settings-card .btn-primary-inline:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .gate {
   min-height: 100vh;
   min-height: 100dvh;
@@ -1313,6 +1373,9 @@ button, input, textarea { font-family: inherit; }
   }
 
   .disclaimer {
+    padding: 28px 28px 48px;
+  }
+  .settings {
     padding: 28px 28px 48px;
   }
   .site-footer {

@@ -135,7 +135,10 @@
               raw: item.raw,
             };
             const fmt = RecipeParser.formatIngredientParts(parsed, scale, { scaledStyle });
-            return `<li>${fmt.html}</li>`;
+            if (fmt.qtyHtml) {
+              return `<li><span class="qty${fmt.scaled ? " qty-scaled" : ""}">${fmt.qtyHtml}</span><span class="ing-rest">${fmt.restHtml}</span></li>`;
+            }
+            return `<li class="ing-plain">${fmt.html}</li>`;
           })
           .join("");
         return `${heading}<ul class="ing-list">${items}</ul>`;
@@ -255,7 +258,7 @@
     const bits = metaBits(recipe);
     const meta = bits.length
       ? `<div class="meta-row">${bits
-          .map((b, i) => `${i ? `<span class="pipe">|</span>` : ""}<span class="k">${h(b.k)}</span><span class="v">${h(b.v)}</span>`)
+          .map((b, i) => `${i ? `<span class="pipe">|</span>` : ""}<span class="k">${h(b.k)}</span><span class="pipe">|</span><span class="v">${h(b.v)}</span>`)
           .join("")}</div>`
       : "";
     const ings = RecipeDB.getIngredientGroups(recipe.id);
@@ -273,8 +276,8 @@
         ${state.exportOpen ? `<div class="menu"><button data-act="cook-now">COOK NOW</button></div>` : ""}
         <div class="detail">
           <h2>${h(recipe.title)}</h2>
-          ${meta}
           ${recipe.image ? `<div class="detail-hero"><img src="${h(recipe.image)}" alt=""></div>` : ""}
+          ${meta}
           ${recipe.description ? `<p class="prose">${RecipeParser.newlinesToBr(recipe.description)}</p>` : ""}
           <div class="section-label">INGREDIENTS</div>
           ${renderIngredients(ings, 1, false)}

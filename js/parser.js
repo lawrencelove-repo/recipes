@@ -155,12 +155,19 @@
     const text = [qtyText, rest].filter(Boolean).join(" ").trim();
 
     if (qty == null) {
-      return { html: escapeHtml(rest), text: rest };
+      return { html: escapeHtml(rest), text: rest, qtyHtml: "", restHtml: escapeHtml(rest), scaled: false };
     }
 
-    const qtyClass = scaledStyle && Math.abs(scale - 1) > 1e-9 ? "qty qty-scaled" : "qty";
+    const scaled = !!(scaledStyle && Math.abs(scale - 1) > 1e-9);
+    const qtyClass = scaled ? "qty qty-scaled" : "qty";
     const html = `<span class="${qtyClass}">${escapeHtml(qtyText)}</span>${rest ? " " + escapeHtml(rest) : ""}`;
-    return { html, text };
+    return {
+      html,
+      text,
+      qtyHtml: escapeHtml(qtyText),
+      restHtml: escapeHtml(rest),
+      scaled,
+    };
   }
 
   function formatRest(parsed, qtyForUnit) {

@@ -24,6 +24,7 @@ Status for the first slice of the recipe site (static HTML/JS on GitHub Pages, S
 - [x] `enabled` flag: stubs without ingredients seed as disabled; list hides them by default; filter + edit/detail toggles to enable/disable any recipe
 - [x] Recipe photo upload (desktop): choose/remove image on edit; stored in browser IndexedDB; optional “Download for repo” to save under `images/`
 - [x] Settings screen with **Export recipes** → Pepperplate-style `.txt` files into `exports/` (directory picker or zip fallback)
+- [x] **Mobile edit → file export → local repo update:** after save (and via detail export menu / desktop **EXPORT .TXT**), download or Web Share a Pepperplate-compatible `.txt`; on a computer overwrite/add under `data/`, run `node scripts/import-recipes.js`, commit/push
 
 ## Deferred (called out in screenshots or likely next)
 
@@ -32,12 +33,11 @@ Status for the first slice of the recipe site (static HTML/JS on GitHub Pages, S
 - [ ] SET TIMER on the cook screen
 - [ ] Richer FILTER (categories, source, time) beyond search + favorites
 - [ ] Delete recipe / duplicate recipe
-- [ ] **Mobile edit → file export → local repo update:** from GitHub Pages, export an edited recipe as a downloadable `data/*.txt` (Pepperplate-compatible) and/or Share via the Web Share API; on a computer, overwrite the matching file under `data/`, run `node scripts/import-recipes.js`, then commit/push. Optional follow-ons: export all dirty recipes, or a full `seed-data.js` / `recipes.json` dump
-- [ ] Export/share extras: print stylesheet, clipboard copy, download `.sqlite`
+- [ ] Export extras: dirty-recipe batch export, full `seed-data.js` / `recipes.json` dump, print stylesheet, clipboard copy, download `.sqlite`
 - [ ] Instruction text that also scales embedded quantities (cook view currently scales the ingredient list only)
 
 ## Hosting notes
 
-GitHub Pages is static, so SQLite runs **in the browser** (sql.js). Edits are saved in **this browser’s IndexedDB**, not in the GitHub repo. Seed data ships with the site. Until GitHub auth/API write-back exists, treat **downloadable recipe files** as the bridge from phone edits back into the repo (see deferred export item above).
+GitHub Pages is static, so SQLite runs **in the browser** (sql.js). Edits are saved in **this browser’s IndexedDB**, not in the GitHub repo. Seed data ships with the site. Use **Download / Share .txt** (and Settings bulk export) as the bridge from device edits back into `data/` + `js/seed-data.js` (see README: Mobile edit → repo update).
 
 The site password cookie is a **soft gate** only. Anyone can still open public files such as `js/seed-data.js` or `images/*` directly from the repo or Pages URL.

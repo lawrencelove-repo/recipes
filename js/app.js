@@ -60,6 +60,7 @@
     gateError: "",
     exportStatus: "",
     exportBusy: false,
+    postSaveExport: false,
   };
 
   const app = document.getElementById("app");
@@ -213,6 +214,9 @@
         <button type="button" class="aside-action" data-act="share">
           ${ICONS.share}<span>SHARE</span>
         </button>
+        <button type="button" class="aside-action" data-act="download-recipe-txt">
+          ${ICONS.export}<span>EXPORT .TXT</span>
+        </button>
         ${
           recipe.url
             ? `<a class="aside-action" href="${h(recipe.url)}" target="_blank" rel="noopener">
@@ -268,6 +272,9 @@
 
   window.addEventListener("hashchange", () => {
     const r = routeFromHash();
+    const leavingRecipe =
+      state.view === "detail" &&
+      (r.view !== "detail" || Number(r.recipeId) !== Number(state.recipeId));
     state.view = r.view;
     state.recipeId = r.recipeId || null;
     state.drawer = false;
@@ -277,6 +284,7 @@
     state.cookOpen = false;
     state.suggestOpen = false;
     state.suggestIndex = -1;
+    if (leavingRecipe) state.postSaveExport = false;
     if (r.view === "cook") state.cookScale = r.scale || 1;
     if (r.view === "detail") state.detailScale = 1;
     if (r.view === "edit") {
@@ -651,9 +659,37 @@
             <button class="icon-btn" data-act="export">${ICONS.export}</button>
           </div>
         </header>
-        ${state.exportOpen ? `<div class="menu mobile-only"><button data-act="cook-now">COOK NOW</button></div>` : ""}
+        ${
+          state.exportOpen
+            ? `<div class="menu mobile-only">
+                <button type="button" data-act="cook-now">COOK NOW</button>
+                <button type="button" data-act="download-recipe-txt">DOWNLOAD .TXT</button>
+                ${
+                  RecipeExport.canShareRecipeFile(recipe)
+                    ? `<button type="button" data-act="share-recipe-file">SHARE .TXT</button>`
+                    : ""
+                }
+              </div>`
+            : ""
+        }
         <div class="detail detail-layout">
           <div class="detail-main">
+            ${
+              state.postSaveExport
+                ? `<div class="post-save-export mobile-only" role="status">
+                    <p>Saved on this device only. Download or share the <code>.txt</code> so you can update <code>data/</code> on a computer.</p>
+                    <div class="post-save-export-actions">
+                      <button type="button" class="btn-primary-inline" data-act="download-recipe-txt">Download .txt</button>
+                      ${
+                        RecipeExport.canShareRecipeFile(recipe)
+                          ? `<button type="button" class="btn-secondary" data-act="share-recipe-file">Share .txt</button>`
+                          : ""
+                      }
+                      <button type="button" class="text-link" data-act="dismiss-post-save">Dismiss</button>
+                    </div>
+                  </div>`
+                : ""
+            }
             <div class="detail-top">
               <div class="detail-heading">
                 ${recipe.source ? `<p class="detail-source">${h(recipe.source)}</p>` : ""}
@@ -891,6 +927,9 @@
               <code>exports</code> folder (or the repo root and an <code>exports</code> folder will be created).
               If the folder picker is unavailable or cancelled, a <code>recipes-exports.zip</code> download is offered instead; extract it into <code>exports/</code>.
             </p>
+            <p class="settings-help">
+              For a single edited recipe (especially on mobile), use <strong>Download / Share .txt</strong> on the recipe detail screen, then copy into <code>data/</code> on a computer — see the README.
+            </p>
           </section>
         </div>
         ${siteFooter()}
@@ -1115,6 +1154,38 @@
       }
       state.exportBusy = false;
       render();
+    } else if (act === "download-recipe-txt") {
+      const recipe = RecipeDB.getRecipe(state.recipeId);
+      if (!recipe) return;
+      state.exportOpen = false;
+      try {
+        RecipeExport.downloadRecipeTxt(recipe);
+        state.postSaveExport = false;
+        render();
+      } catch (err) {
+        alert(err.message || String(err));
+      }
+    } else if (act === "share-recipe-file") {
+      const recipe = RecipeDB.getRecipe(state.recipeId);
+      if (!recipe) return;
+      state.exportOpen = false;
+      try {
+        const result = await RecipeExport.shareRecipeFile(recipe);
+        state.postSaveExport = false;
+        render();
+        if (result.mode === "download") {
+          alert(`Shared files are not supported here. Downloaded ${result.filename} instead.`);
+        }
+      } catch (err) {
+        if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) {
+          /* user cancelled share sheet */
+        } else {
+          alert(err.message || String(err));
+        }
+      }
+    } else if (act === "dismiss-post-save") {
+      state.postSaveExport = false;
+      render();
     } else if (act === "print") {
       window.print();
     } else if (act === "share") {
@@ -1211,6 +1282,7 @@
           await RecipeDB.saveRecipe({ ...draft, id, image: ref });
         }
         state.editDraft = null;
+        state.postSaveExport = true;
         go(`#/recipe/${id}`);
       } catch (err) {
         state.editError = err.message || String(err);

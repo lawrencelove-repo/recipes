@@ -181,6 +181,45 @@ button, input, textarea { font-family: inherit; }
   color: #9a1c1c;
   font-size: 13px;
 }
+.post-save-export {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  background: #f7f3ea;
+  border: 1px solid #e2d8c4;
+}
+.post-save-export p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #333;
+}
+.post-save-export code {
+  font-size: 12px;
+}
+.post-save-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.post-save-export-actions .btn-primary-inline,
+.post-save-export-actions .btn-secondary {
+  border: none;
+  padding: 8px 12px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.post-save-export-actions .btn-primary-inline {
+  background: var(--accent-hot);
+  color: #fff;
+}
+.post-save-export-actions .btn-secondary {
+  background: #fff;
+  border: 1px solid var(--line);
+  color: #333;
+}
 .detail-enable-row {
   padding: 0 0 10px;
 }

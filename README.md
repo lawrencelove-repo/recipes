@@ -68,14 +68,48 @@ After that, the photo is part of the site for every visitor/device, not only the
 
 You can leave `local:{id}` for personal-only drafts; use **Download for repo** when you want the image in git and on GitHub Pages.
 
-## Export recipes
+## Export recipes (all)
 
 **Settings → Export recipes** writes every recipe in the browser database as individual Pepperplate-style `.txt` files (same shape as `data/`).
 
 - Prefer choosing the project’s **`exports/`** folder in the directory picker (Chrome/Edge desktop).
 - If the picker is unavailable, download **`recipes-exports.zip`** and extract it into `exports/`.
 
-`data/` remains the seed/source import tree; `exports/` is for database snapshots you can compare or copy back.
+`data/` remains the seed/source import tree; `exports/` is for database snapshots you can compare or copy back into `data/`.
+
+## Mobile edit → repo update
+
+Edits on GitHub Pages (or any browser) live only in **that browser’s IndexedDB**. To get a phone edit into the git repo and onto Pages for every device:
+
+### On your phone
+
+1. Open the recipe → **Edit** (pencil) → change fields → **Save**.
+2. After save, a banner offers **Download .txt** (and **Share .txt** when the browser supports file sharing).
+3. You can also open the detail **export** menu (square-with-arrow icon) anytime for:
+   - **COOK NOW**
+   - **DOWNLOAD .TXT** — Pepperplate-style file, named like `data/` (`CevichedeCameron.txt`)
+   - **SHARE .TXT** — Web Share sheet (AirDrop, Files, email, etc.) when available
+4. Keep the downloaded/shared file until you are at a computer with the repo.
+
+On desktop, recipe detail also has **EXPORT .TXT** in the sidebar.
+
+### On a computer (update the repo)
+
+1. Copy the `.txt` into the project’s **`data/`** folder.
+   - If a file with the same name already exists, **overwrite** it.
+   - If this is a brand-new recipe, add the new file under `data/`.
+2. Regenerate the seeded database used by the static site:
+   ```bash
+   node scripts/import-recipes.js
+   ```
+3. Commit and push at least:
+   - `data/YourRecipe.txt`
+   - `js/seed-data.js`
+4. After GitHub Pages rebuilds, other browsers/devices get the updated seed (they may need a refresh; a schema rebuild only happens when the app’s schema version bumps).
+
+**Tip:** Filename stems match the import convention (letters/digits from the title, e.g. `Banana Punch` → `BananaPunch.txt`). If you are unsure which `data/` file to replace, search `data/` for the recipe title.
+
+**Note:** Photos are separate — see [“Download for repo”](#download-for-repo--how-it-works). A recipe `.txt` can reference `images/...`, but the image file itself still needs to be committed under `images/`.
 
 ## Related docs
 

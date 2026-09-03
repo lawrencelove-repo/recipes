@@ -129,10 +129,58 @@
     return await downloadZip(files);
   }
 
+  function recipeFilePayload(recipe) {
+    const filename = exportFilename(recipe.title, recipe.id);
+    const text = recipeToPepperplateText(recipe);
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const file = new File([blob], filename, { type: "text/plain" });
+    return { filename, text, blob, file };
+  }
+
+  function downloadRecipeTxt(recipe) {
+    const { filename, blob } = recipeFilePayload(recipe);
+    const a = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    return { mode: "download", filename };
+  }
+
+  function canShareRecipeFile(recipe) {
+    if (!navigator.share || !navigator.canShare) return false;
+    try {
+      const { file } = recipeFilePayload(recipe);
+      return navigator.canShare({ files: [file] });
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function shareRecipeFile(recipe) {
+    const payload = recipeFilePayload(recipe);
+    if (canShareRecipeFile(recipe)) {
+      await navigator.share({
+        files: [payload.file],
+        title: recipe.title || payload.filename,
+        text: "Recipe export for the recipes repo (place under data/).",
+      });
+      return { mode: "share", filename: payload.filename };
+    }
+    return downloadRecipeTxt(recipe);
+  }
+
   global.RecipeExport = {
     recipeToPepperplateText,
     exportFilename,
     uniqueFilenames,
     exportAllRecipes,
+    recipeFilePayload,
+    downloadRecipeTxt,
+    canShareRecipeFile,
+    shareRecipeFile,
   };
 })(window);

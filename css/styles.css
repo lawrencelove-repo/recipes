@@ -159,17 +159,39 @@ button, input, textarea { font-family: inherit; }
   border-bottom: 1px solid var(--line);
   cursor: pointer;
 }
-.list-section {
-  display: block !important;
-  background: #f2f2f2;
-  color: #555;
-  font-size: 13px;
+.list li.is-disabled {
+  opacity: 0.72;
+}
+.disabled-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid #bbb;
+  color: #777;
+  font-family: var(--sans);
+  font-style: normal;
+  font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.disabled-banner {
+  margin: 8px 0 0;
+  color: #9a1c1c;
+  font-size: 13px;
+}
+.detail-enable-row {
+  padding: 0 0 10px;
+}
+.detail-enable-row .text-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
   letter-spacing: 0.04em;
-  padding: 4px 14px !important;
-  border-bottom: 1px solid #e0e0e0;
-  cursor: default !important;
-  scroll-margin-top: 0;
+  cursor: pointer;
+  padding: 0;
 }
 .alpha-index {
   display: none;
@@ -1139,7 +1161,7 @@ button, input, textarea { font-family: inherit; }
   }
   .screen-edit .field-row.field-span-all {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto auto;
     gap: 20px;
     align-items: end;
   }

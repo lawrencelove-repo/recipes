@@ -46,6 +46,7 @@
     search: "",
     sort: "title",
     favoritesOnly: false,
+    enabledMode: "enabled",
     scalePick: 1,
     cookScale: 1,
     detailScale: 1,
@@ -115,7 +116,10 @@
       .trim()
       .toLowerCase();
     if (!q) return [];
-    return RecipeDB.listRecipes({ sort: "title" })
+    return RecipeDB.listRecipes({
+      sort: "title",
+      enabledMode: state.enabledMode,
+    })
       .filter((r) => r.title.toLowerCase().includes(q))
       .slice(0, 10);
   }
@@ -193,6 +197,9 @@
         </button>
         <button type="button" class="aside-action ${recipe.favorite ? "on" : ""}" data-act="toggle-favorite">
           ${ICONS.star}<span>FAVORITE</span>
+        </button>
+        <button type="button" class="aside-action ${recipe.enabled ? "" : "on"}" data-act="toggle-enabled">
+          ${ICONS.check}<span>${recipe.enabled ? "DISABLE RECIPE" : "ENABLE RECIPE"}</span>
         </button>
         <button type="button" class="aside-action" data-act="soon" data-soon="Delete recipe">
           ${ICONS.trash}<span>DELETE RECIPE</span>
@@ -286,6 +293,7 @@
         total_time: "",
         categories: "",
         favorite: false,
+        enabled: true,
         source: "",
         url: "",
         notes: "",
@@ -295,7 +303,7 @@
       };
     }
     const r = RecipeDB.getRecipe(id);
-    return { ...r };
+    return { ...r, enabled: r.enabled !== false };
   }
 
   function metaBits(recipe) {
@@ -380,11 +388,11 @@
       ? `<div class="thumb has-img"><img src="${h(r.image)}" alt="" loading="lazy"></div>`
       : `<div class="thumb">${ICONS.fork}</div>`;
     return `
-      <li data-go="#/recipe/${r.id}" ${extraAttrs || ""}>
+      <li data-go="#/recipe/${r.id}" class="${r.enabled ? "" : "is-disabled"}" ${extraAttrs || ""}>
         ${thumb}
         <div>
           ${r.source ? `<p class="source">${h(r.source)}</p>` : ""}
-          <p class="title">${h(r.title)}</p>
+          <p class="title">${h(r.title)}${r.enabled ? "" : '<span class="disabled-badge">Disabled</span>'}</p>
         </div>
       </li>`;
   }
@@ -458,6 +466,7 @@
       search: state.search,
       sort: state.sort,
       favoritesOnly: state.favoritesOnly,
+      enabledMode: state.enabledMode,
     });
     const count = recipes.length;
     const indexed = renderIndexedRecipeList(recipes);
@@ -506,7 +515,10 @@
   function filterSheet() {
     return `<div class="sheet">
       <button class="${state.favoritesOnly ? "on" : ""}" data-act="toggle-fav-filter">Favorites only</button>
-      <button data-act="clear-filter">Show all</button>
+      <button class="${state.enabledMode === "enabled" ? "on" : ""}" data-act="set-enabled-mode" data-mode="enabled">Enabled recipes</button>
+      <button class="${state.enabledMode === "disabled" ? "on" : ""}" data-act="set-enabled-mode" data-mode="disabled">Disabled recipes</button>
+      <button class="${state.enabledMode === "all" ? "on" : ""}" data-act="set-enabled-mode" data-mode="all">All recipes</button>
+      <button data-act="clear-filter">Reset filters</button>
     </div>`;
   }
 
@@ -572,10 +584,14 @@
                   <span>${h(recipe.title)}</span>
                   <button type="button" class="icon-btn inline-edit desktop-only" data-go="#/recipe/${recipe.id}/edit" title="Edit">${ICONS.pencil}</button>
                 </h2>
+                ${recipe.enabled ? "" : `<p class="disabled-banner">This recipe is disabled and hidden from the main list.</p>`}
               </div>
               ${recipe.image ? `<div class="detail-hero"><img src="${h(recipe.image)}" alt=""></div>` : `<div class="detail-hero detail-hero-empty desktop-only">${ICONS.fork}</div>`}
             </div>
             ${meta}
+            <div class="mobile-only detail-enable-row">
+              <button type="button" class="text-link" data-act="toggle-enabled">${recipe.enabled ? "Disable recipe" : "Enable recipe"}</button>
+            </div>
             ${recipe.description ? `<p class="prose">${RecipeParser.newlinesToBr(recipe.description)}</p>` : ""}
             <div class="section-label">
               INGREDIENTS
@@ -666,6 +682,10 @@
           <div class="field fav-field">
             <label>FAVORITE</label>
             <button type="button" class="toggle ${d.favorite ? "on" : ""}" data-act="fav"><i></i></button>
+          </div>
+          <div class="field fav-field">
+            <label>ENABLED</label>
+            <button type="button" class="toggle ${d.enabled !== false ? "on" : ""}" data-act="enabled"><i></i></button>
           </div>
         </div>
         <div class="field"><label>SOURCE</label><input name="source" value="${h(d.source)}"></div>
@@ -900,8 +920,13 @@
       state.favoritesOnly = !state.favoritesOnly;
       state.filterOpen = false;
       render();
+    } else if (act === "set-enabled-mode") {
+      state.enabledMode = actEl.getAttribute("data-mode") || "enabled";
+      state.filterOpen = false;
+      render();
     } else if (act === "clear-filter") {
       state.favoritesOnly = false;
+      state.enabledMode = "enabled";
       state.search = "";
       state.filterOpen = false;
       render();
@@ -931,6 +956,12 @@
       const recipe = RecipeDB.getRecipe(state.recipeId);
       if (recipe) {
         await RecipeDB.toggleFavorite(recipe.id, !recipe.favorite);
+        render();
+      }
+    } else if (act === "toggle-enabled") {
+      const recipe = RecipeDB.getRecipe(state.recipeId);
+      if (recipe) {
+        await RecipeDB.toggleEnabled(recipe.id, !recipe.enabled);
         render();
       }
     } else if (act === "print") {
@@ -973,6 +1004,10 @@
     } else if (act === "fav") {
       captureEditFields();
       state.editDraft.favorite = !state.editDraft.favorite;
+      render();
+    } else if (act === "enabled") {
+      captureEditFields();
+      state.editDraft.enabled = !state.editDraft.enabled;
       render();
     } else if (act === "cancel-edit") {
       const id = state.recipeId;

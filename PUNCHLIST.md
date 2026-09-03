@@ -21,6 +21,7 @@ Status for the first slice of the recipe site (static HTML/JS on GitHub Pages, S
 - [x] Disclaimer page + footer link (non-affiliation / personal non-commercial)
 - [x] Soft cookie password gate (static-host deterrent only; passphrase is not a true secret)
 - [x] Host recipe photos locally under `images/` instead of Pepperplate CDN URLs
+- [x] `enabled` flag: stubs without ingredients seed as disabled; list hides them by default; filter + edit/detail toggles to enable/disable any recipe
 
 ## Deferred (called out in screenshots or likely next)
 

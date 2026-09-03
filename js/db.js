@@ -3,7 +3,7 @@
   const IDB_STORE = "kv";
   const DB_KEY = "database";
   // Bump when schema or shipped seed set changes (forces local DB rebuild).
-  const SCHEMA_VERSION = 3;
+  const SCHEMA_VERSION = 4;
 
   const SEED_SQL = `
     CREATE TABLE IF NOT EXISTS meta (
@@ -20,6 +20,7 @@
       total_time TEXT NOT NULL DEFAULT '',
       categories TEXT NOT NULL DEFAULT '',
       favorite INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
       source TEXT NOT NULL DEFAULT '',
       url TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
@@ -210,11 +211,17 @@
 
   function insertRecipe(recipe) {
     const ts = nowIso();
+    const enabled =
+      recipe.enabled === undefined || recipe.enabled === null
+        ? 1
+        : recipe.enabled
+          ? 1
+          : 0;
     exec(
       `INSERT INTO recipes (
-        title, description, yield, active_time, total_time, categories, favorite,
+        title, description, yield, active_time, total_time, categories, favorite, enabled,
         source, url, notes, image, instructions_raw, ingredients_raw, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         recipe.title,
         recipe.description || "",
@@ -223,6 +230,7 @@
         recipe.total_time || "",
         recipe.categories || "",
         recipe.favorite ? 1 : 0,
+        enabled,
         recipe.source || "",
         recipe.url || "",
         recipe.notes || "",
@@ -243,6 +251,7 @@
     return {
       ...row,
       favorite: !!row.favorite,
+      enabled: row.enabled === undefined || row.enabled === null ? true : !!row.enabled,
     };
   }
 
@@ -268,10 +277,17 @@
       }
     },
 
-    listRecipes({ search = "", sort = "title", favoritesOnly = false } = {}) {
+    listRecipes({
+      search = "",
+      sort = "title",
+      favoritesOnly = false,
+      enabledMode = "enabled",
+    } = {}) {
       let sql = "SELECT * FROM recipes WHERE 1=1";
       const params = [];
       if (favoritesOnly) sql += " AND favorite = 1";
+      if (enabledMode === "enabled") sql += " AND enabled = 1";
+      else if (enabledMode === "disabled") sql += " AND enabled = 0";
       if (search.trim()) {
         sql +=
           " AND (title LIKE ? OR source LIKE ? OR categories LIKE ? OR notes LIKE ? OR description LIKE ?)";
@@ -347,6 +363,7 @@
         total_time: recipe.total_time || "",
         categories: recipe.categories || "",
         favorite: recipe.favorite ? 1 : 0,
+        enabled: recipe.enabled === undefined || recipe.enabled === null ? 1 : recipe.enabled ? 1 : 0,
         source: recipe.source || "",
         url: recipe.url || "",
         notes: recipe.notes || "",
@@ -358,7 +375,7 @@
         exec(
           `UPDATE recipes SET
             title=?, description=?, yield=?, active_time=?, total_time=?, categories=?,
-            favorite=?, source=?, url=?, notes=?, image=?, instructions_raw=?, ingredients_raw=?,
+            favorite=?, enabled=?, source=?, url=?, notes=?, image=?, instructions_raw=?, ingredients_raw=?,
             updated_at=?
            WHERE id=?`,
           [
@@ -369,6 +386,7 @@
             payload.total_time,
             payload.categories,
             payload.favorite,
+            payload.enabled,
             payload.source,
             payload.url,
             payload.notes,
@@ -390,6 +408,15 @@
 
     async toggleFavorite(id, value) {
       exec("UPDATE recipes SET favorite = ?, updated_at = ? WHERE id = ?", [
+        value ? 1 : 0,
+        nowIso(),
+        id,
+      ]);
+      await persist();
+    },
+
+    async toggleEnabled(id, value) {
+      exec("UPDATE recipes SET enabled = ?, updated_at = ? WHERE id = ?", [
         value ? 1 : 0,
         nowIso(),
         id,

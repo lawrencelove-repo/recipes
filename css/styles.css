@@ -33,6 +33,7 @@ button, input, textarea { font-family: inherit; }
   position: relative;
   overflow: hidden;
   min-height: 100vh;
+  min-height: 100dvh;
   box-shadow: none;
 }
 
@@ -40,17 +41,18 @@ button, input, textarea { font-family: inherit; }
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--paper);
 }
 
 .topbar {
   background: var(--header);
   color: #fff;
-  min-height: 52px;
+  min-height: calc(52px + env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 10px;
+  padding: env(safe-area-inset-top, 0px) 10px 0;
   position: relative;
   flex-shrink: 0;
 }
@@ -584,7 +586,7 @@ button, input, textarea { font-family: inherit; }
   color: #fff;
   display: flex;
   flex-direction: column;
-  padding: 16px 0 12px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 0 calc(12px + env(safe-area-inset-bottom, 0px));
 }
 .drawer-search {
   position: relative;
@@ -712,7 +714,7 @@ button, input, textarea { font-family: inherit; }
 
 .site-footer {
   margin-top: auto;
-  padding: 16px 18px 20px;
+  padding: 16px 18px calc(20px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--line);
   display: flex;
   flex-wrap: wrap;
@@ -749,11 +751,12 @@ button, input, textarea { font-family: inherit; }
 
 .gate {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #1a1a1a;
-  padding: 24px;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 24px calc(24px + env(safe-area-inset-bottom, 0px));
 }
 .gate-card {
   width: 100%;

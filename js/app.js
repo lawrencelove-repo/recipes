@@ -354,11 +354,12 @@
       .trim()
       .charAt(0)
       .toLocaleUpperCase();
+    // A–Z keep their letter; everything else (digits, symbols, etc.) maps to "#".
     if (ch >= "A" && ch <= "Z") return ch;
-    if (ch >= "0" && ch <= "9") return "#";
     return "#";
   }
 
+  // Index rail order: A–Z, then "#" last (omitted when the list has no such titles).
   const ALPHA_INDEX_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
 
   function alphaIndexHtml(presentKeys) {
@@ -388,18 +389,34 @@
       </li>`;
   }
 
+  function orderRecipesForIndex(recipes) {
+    // Keep "#" after Z for A–Z, and before Z for Z–A, matching the rail.
+    if (state.sort === "title") {
+      const letters = recipes.filter((r) => listIndexKey(r.title) !== "#");
+      const other = recipes.filter((r) => listIndexKey(r.title) === "#");
+      return letters.concat(other);
+    }
+    if (state.sort === "title-desc") {
+      const letters = recipes.filter((r) => listIndexKey(r.title) !== "#");
+      const other = recipes.filter((r) => listIndexKey(r.title) === "#");
+      return other.concat(letters);
+    }
+    return recipes;
+  }
+
   function renderIndexedRecipeList(recipes) {
     if (!recipes.length) {
       return { html: `<li style="cursor:default">No recipes yet.</li>`, present: new Set() };
     }
 
     const alphabetical = state.sort === "title" || state.sort === "title-desc";
+    const ordered = alphabetical ? orderRecipesForIndex(recipes) : recipes;
     const present = new Set();
     const seenAnchor = new Set();
     let lastKey = null;
     let html = "";
 
-    for (const r of recipes) {
+    for (const r of ordered) {
       const key = listIndexKey(r.title);
       present.add(key);
 
@@ -410,10 +427,9 @@
         }
         html += recipeListItemHtml(r);
       } else {
-        const attrs =
-          !seenAnchor.has(key)
-            ? `id="list-index-${key === "#" ? "num" : key}" data-index-key="${key}"`
-            : "";
+        const attrs = !seenAnchor.has(key)
+          ? `id="list-index-${key === "#" ? "num" : key}" data-index-key="${key}"`
+          : "";
         seenAnchor.add(key);
         html += recipeListItemHtml(r, attrs);
       }

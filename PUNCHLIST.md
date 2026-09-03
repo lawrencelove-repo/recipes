@@ -22,10 +22,10 @@ Status for the first slice of the recipe site (static HTML/JS on GitHub Pages, S
 - [x] Soft cookie password gate (static-host deterrent only; passphrase is not a true secret)
 - [x] Host recipe photos locally under `images/` instead of Pepperplate CDN URLs
 - [x] `enabled` flag: stubs without ingredients seed as disabled; list hides them by default; filter + edit/detail toggles to enable/disable any recipe
+- [x] Recipe photo upload (desktop): choose/remove image on edit; stored in browser IndexedDB; optional “Download for repo” to save under `images/`
 
 ## Deferred (called out in screenshots or likely next)
 
-- [ ] Recipe photos (camera / upload) instead of fork-and-knife placeholder
 - [ ] Menus, Planner, Shopping List (and “add to shopping list” scale modal)
 - [ ] Settings and real sync (GitHub Pages cannot write a shared SQLite file for all visitors)
 - [ ] SET TIMER on the cook screen

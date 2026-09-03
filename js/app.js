@@ -383,13 +383,82 @@
     </nav>`;
   }
 
+  function imageThumbHtml(imageRef, className) {
+    if (!imageRef) {
+      return `<div class="thumb">${ICONS.fork}</div>`;
+    }
+    if (RecipeImages.isLocalRef(imageRef)) {
+      return `<div class="thumb has-img"><img alt="" data-local-image="${h(imageRef)}" hidden></div>`;
+    }
+    return `<div class="thumb has-img"><img src="${h(imageRef)}" alt="" loading="lazy"></div>`;
+  }
+
+  function imageHeroHtml(imageRef) {
+    if (!imageRef) {
+      return `<div class="detail-hero detail-hero-empty desktop-only">${ICONS.fork}</div>`;
+    }
+    if (RecipeImages.isLocalRef(imageRef)) {
+      return `<div class="detail-hero has-photo"><img alt="" data-local-image="${h(imageRef)}"></div>`;
+    }
+    return `<div class="detail-hero"><img src="${h(imageRef)}" alt=""></div>`;
+  }
+
+  function editPhotoPreviewSrc(draft) {
+    if (draft._pendingPhotoPreview) return draft._pendingPhotoPreview;
+    if (draft._removePhoto) return "";
+    if (RecipeImages.isLocalRef(draft.image)) return "";
+    return draft.image || "";
+  }
+
+  function editPhotoBlock(draft) {
+    const previewSrc = editPhotoPreviewSrc(draft);
+    const hasLocal = !draft._removePhoto && RecipeImages.isLocalRef(draft.image);
+    const hasPreview = !!(previewSrc || hasLocal || draft._pendingPhoto);
+    return `
+      <div class="field field-span-all photo-field desktop-only">
+        <label>PHOTO</label>
+        <div class="photo-editor">
+          <div class="photo-preview ${hasPreview ? "has-photo" : ""}">
+            ${
+              previewSrc
+                ? `<img src="${h(previewSrc)}" alt="">`
+                : hasLocal
+                  ? `<img alt="" data-local-image="${h(draft.image)}">`
+                  : `<div class="photo-placeholder">${ICONS.fork}<span>No photo</span></div>`
+            }
+          </div>
+          <div class="photo-actions">
+            <label class="photo-file-btn">
+              Choose photo
+              <input type="file" accept="image/*" data-act="pick-photo" hidden>
+            </label>
+            ${
+              hasPreview
+                ? `<button type="button" class="btn-secondary" data-act="clear-photo">Remove photo</button>`
+                : ""
+            }
+            ${
+              hasLocal && draft.id
+                ? `<button type="button" class="btn-secondary" data-act="download-photo">Download for repo</button>`
+                : ""
+            }
+            <p class="photo-help">Desktop upload is stored in this browser. Use “Download for repo” then save under <code>images/</code> and set the path below if you want it in git.</p>
+          </div>
+        </div>
+        <label class="photo-url-label">IMAGE PATH / URL</label>
+        <input name="image" value="${h(draft._removePhoto ? "" : draft.image || "")}" placeholder="images/my-recipe.jpg or https://…">
+      </div>
+      <div class="field field-span-all mobile-only">
+        <label>IMAGE PATH / URL</label>
+        <input name="image" value="${h(draft._removePhoto ? "" : draft.image || "")}" placeholder="images/my-recipe.jpg">
+        <p class="photo-help">Photo upload is available on desktop.</p>
+      </div>`;
+  }
+
   function recipeListItemHtml(r, extraAttrs) {
-    const thumb = r.image
-      ? `<div class="thumb has-img"><img src="${h(r.image)}" alt="" loading="lazy"></div>`
-      : `<div class="thumb">${ICONS.fork}</div>`;
     return `
       <li data-go="#/recipe/${r.id}" class="${r.enabled ? "" : "is-disabled"}" ${extraAttrs || ""}>
-        ${thumb}
+        ${imageThumbHtml(r.image)}
         <div>
           ${r.source ? `<p class="source">${h(r.source)}</p>` : ""}
           <p class="title">${h(r.title)}${r.enabled ? "" : '<span class="disabled-badge">Disabled</span>'}</p>
@@ -586,7 +655,7 @@
                 </h2>
                 ${recipe.enabled ? "" : `<p class="disabled-banner">This recipe is disabled and hidden from the main list.</p>`}
               </div>
-              ${recipe.image ? `<div class="detail-hero"><img src="${h(recipe.image)}" alt=""></div>` : `<div class="detail-hero detail-hero-empty desktop-only">${ICONS.fork}</div>`}
+              ${imageHeroHtml(recipe.image)}
             </div>
             ${meta}
             <div class="mobile-only detail-enable-row">
@@ -690,7 +759,7 @@
         </div>
         <div class="field"><label>SOURCE</label><input name="source" value="${h(d.source)}"></div>
         <div class="field field-span-2"><label>URL</label><input name="url" value="${h(d.url)}"></div>
-        <div class="field field-span-all"><label>IMAGE URL</label><input name="image" value="${h(d.image || "")}"></div>
+        ${editPhotoBlock(d)}
         <div class="field field-span-all"><label>NOTES</label><textarea name="notes">${h(d.notes)}</textarea></div>
       </form>`;
     } else if (state.editTab === 1) {
@@ -820,6 +889,7 @@
 
     if (r.view === "disclaimer") {
       app.innerHTML = disclaimerView();
+      RecipeImages.hydrate(app).catch(() => {});
       return;
     }
 
@@ -842,6 +912,8 @@
       state.cookScale = r.scale || 1;
       app.innerHTML = cookView();
     } else app.innerHTML = soonView(r.name);
+
+    RecipeImages.hydrate(app).catch(() => {});
   }
 
   function captureEditFields() {
@@ -856,8 +928,17 @@
       state.editDraft.categories = fd.get("categories") || "";
       state.editDraft.source = fd.get("source") || "";
       state.editDraft.url = fd.get("url") || "";
-      state.editDraft.image = fd.get("image") || "";
       state.editDraft.notes = fd.get("notes") || "";
+      // Prefer a non-empty image path if multiple inputs exist (desktop + mobile).
+      const imageInputs = form.querySelectorAll('input[name="image"]');
+      let imageVal = "";
+      imageInputs.forEach((input) => {
+        if (input.value.trim()) imageVal = input.value.trim();
+      });
+      if (!imageVal && imageInputs.length) imageVal = imageInputs[0].value || "";
+      if (!state.editDraft._pendingPhoto) {
+        state.editDraft.image = imageVal;
+      }
     }
     const ta = app.querySelector("[data-field]");
     if (ta) state.editDraft[ta.getAttribute("data-field")] = ta.value;
@@ -1009,6 +1090,31 @@
       captureEditFields();
       state.editDraft.enabled = !state.editDraft.enabled;
       render();
+    } else if (act === "clear-photo") {
+      captureEditFields();
+      if (state.editDraft._pendingPhotoPreview) {
+        URL.revokeObjectURL(state.editDraft._pendingPhotoPreview);
+      }
+      state.editDraft._pendingPhoto = null;
+      state.editDraft._pendingPhotoPreview = "";
+      state.editDraft._removePhoto = true;
+      state.editDraft.image = "";
+      render();
+    } else if (act === "download-photo") {
+      const draft = state.editDraft || RecipeDB.getRecipe(state.recipeId);
+      const recipe = draft && draft.id ? draft : RecipeDB.getRecipe(state.recipeId);
+      if (!recipe || !RecipeImages.isLocalRef(recipe.image)) return;
+      const blob = await RecipeImages.getBlob(recipe.image);
+      if (!blob) {
+        alert("No local photo found in this browser.");
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = RecipeImages.slugFilename(recipe.title, recipe.id);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     } else if (act === "cancel-edit") {
       const id = state.recipeId;
       state.editDraft = null;
@@ -1016,7 +1122,24 @@
     } else if (act === "save-edit") {
       captureEditFields();
       try {
-        const id = await RecipeDB.saveRecipe(state.editDraft);
+        const draft = { ...state.editDraft };
+        const pending = draft._pendingPhoto || null;
+        const removePhoto = !!draft._removePhoto;
+        if (draft._pendingPhotoPreview) URL.revokeObjectURL(draft._pendingPhotoPreview);
+        delete draft._pendingPhoto;
+        delete draft._pendingPhotoPreview;
+        delete draft._removePhoto;
+
+        if (removePhoto && !pending) {
+          if (draft.id) await RecipeImages.removeRecipePhoto(draft.id);
+          if (RecipeImages.isLocalRef(draft.image)) draft.image = "";
+        }
+
+        let id = await RecipeDB.saveRecipe(draft);
+        if (pending) {
+          const ref = await RecipeImages.saveRecipePhoto(id, pending);
+          await RecipeDB.saveRecipe({ ...draft, id, image: ref });
+        }
         state.editDraft = null;
         go(`#/recipe/${id}`);
       } catch (err) {
@@ -1049,6 +1172,25 @@
       }
     }
   }
+
+  app.addEventListener("change", (e) => {
+    if (!e.target.matches("[data-act=pick-photo]")) return;
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.type || file.type.indexOf("image/") !== 0) {
+      alert("Please choose an image file.");
+      e.target.value = "";
+      return;
+    }
+    captureEditFields();
+    if (state.editDraft._pendingPhotoPreview) {
+      URL.revokeObjectURL(state.editDraft._pendingPhotoPreview);
+    }
+    state.editDraft._pendingPhoto = file;
+    state.editDraft._pendingPhotoPreview = URL.createObjectURL(file);
+    state.editDraft._removePhoto = false;
+    render();
+  });
 
   app.addEventListener("input", (e) => {
     if (!e.target.matches("[data-act=search], [data-act=desk-search]")) return;

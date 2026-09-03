@@ -1,0 +1,25 @@
+Title: Banana Punch
+Description: 
+Source: Mom
+Original URL: 
+Yield: 
+Active: 
+Total: 
+Ingredients:
+[syrup]
+	3 cups sugar
+	6 cups water
+
+[purée]
+	7 bananas
+	12 can frozen orange juice
+	1 46 oz cap pineapple juice
+	2 2L 7-Up bottles
+
+Instructions:
+	Dilute sugar in water to make syrup. Cut up bananas and blend in a blender.
+	Add OJ to make the purée.
+	In a bowl, add the sugar syrup and banana puree with pineapple juice.
+	Freeze until slushy.
+	Before serving, add 1 2L bottle of 7-Up to half of the frozen mixture.
+

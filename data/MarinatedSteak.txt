@@ -1,0 +1,36 @@
+Title: Marinated Steak
+Description: Dad’s recipe for marinated ribeye steay
+Source: 
+Original URL: https://m.wikihow.com/Marinate-a-Steak#Marinating_Steak
+Yield: 
+Active: .5 hr
+Total: 4 hrs
+Ingredients:
+[Marinade]
+	1/4 cup red wine (Cabernet Sauvignon)
+	1/4 cup ketchup
+	1/4 cup soy sauce
+	1/2 cup vinegar
+	3/4 cup water
+	1/2 tsp garlic powder
+	1 1/2 tsp MSG
+
+Instructions:
+[Marinating]
+	Prepare marinade
+	Cut nicks into steak
+	Pour marinade over steak
+	Allow meat to marinade for 3-4 hours in refrigerator
+	Remove from marinade and allow meat to sit at room temperature for an hour
+	For sauce, take remaining marinade, add 1 tablespoon of olive oil, and bring to a boil.
+
+[Grilling]
+	Preheat grill to 400°
+	Lower burners to lowest setting
+	Grill with cover closed for 3 minutes
+	Grill with cover open for 2 minutes
+	Flip
+	Grill with cover closed for 3 minutes
+	Grill with cover open for 2 minutes
+	Cook to 150°
+

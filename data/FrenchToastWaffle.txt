@@ -1,0 +1,23 @@
+Title: French Toast Waffle
+Description: 
+Source: twitter
+Original URL: https://twitter.com/firstwefeast/status/1487458049740742656?s=21&t=JlbSsOnpJSG1IKgwOjjTaw
+Yield: 
+Active: 
+Total: 
+Ingredients:
+	3 eggs
+	1 tsp cinnamon
+	1/2 tsp vanilla extract
+	1 Tbsp milk
+	2 eggo waffles
+
+Instructions:
+	Mix ingredients
+	Heat small frying pan over medium heat
+	Lightly toast waffles
+	Melt 1 Tbsp butter in frying pan
+	Coat waffle in mixture
+	Fry each side 2 minutes
+	Sprinkle with powdered sugar
+

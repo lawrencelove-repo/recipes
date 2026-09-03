@@ -922,7 +922,8 @@ button, input, textarea { font-family: inherit; }
   .desk-search-btn svg {
     width: 18px;
     height: 18px;
-    fill: currentColor;
+    fill: none;
+    stroke: currentColor;
   }
   .desk-search .search-suggest {
     position: absolute;

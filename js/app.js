@@ -27,7 +27,7 @@
     share: '<svg viewBox="0 0 24 24"><path d="M18 16.1a2.9 2.9 0 0 0-2 .8l-7.1-4.1a3 3 0 0 0 0-1.6L16 7.1a3 3 0 1 0-1-1.7L7.9 9.5a3 3 0 1 0 0 5l7.1 4.1a2.9 2.9 0 1 0 3-2.5z"/></svg>',
     link: '<svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14V3zM5 5h6v2H7v10h10v-4h2v6H5V5z"/></svg>',
     cart: '<svg viewBox="0 0 24 24"><path d="M7 18a2 2 0 1 0 .01 4.01A2 2 0 0 0 7 18zm10 0a2 2 0 1 0 .01 4.01A2 2 0 0 0 17 18zM7.2 14h9.9l2.1-8H6.1L5.2 3H2v2h2l3.2 9.4L6.1 17H19v-2H7.2z"/></svg>',
-    search: '<svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.25"/><path d="M15.5 15.5L21 21"/></svg>',
   };
 
   const GATE_COOKIE = "recipes_gate";

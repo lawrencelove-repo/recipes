@@ -1,5 +1,5 @@
 /* Recipes app shell service worker — offline-friendly cache for static assets. */
-const CACHE_VERSION = "recipes-v1";
+const CACHE_VERSION = "recipes-v2";
 const PRECACHE = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const PRECACHE = [
   "./js/db.js",
   "./js/images.js",
   "./js/export.js",
+  "./js/shopping.js",
   "./js/app.js",
   "./assets/favicon/favicon.ico",
   "./assets/favicon/favicon-16x16.png",

@@ -43,6 +43,8 @@
     sortOpen: false,
     filterOpen: false,
     cookOpen: false,
+    shopOpen: false,
+    shopToast: false,
     search: "",
     sort: "title",
     favoritesOnly: false,
@@ -147,7 +149,7 @@
       ["#/", "recipes", "list"],
       ["#/menus", "menus", "soon"],
       ["#/planner", "planner", "soon"],
-      ["#/shopping", "shopping", "soon"],
+      ["#/shopping", "shopping", "shopping"],
       ["#/settings", "settings", "settings"],
     ];
     return `
@@ -200,7 +202,7 @@
         <button type="button" class="aside-action aside-action-primary" data-act="cook-now">
           ${ICONS.fork}<span>COOK NOW</span>
         </button>
-        <button type="button" class="aside-action" data-act="soon" data-soon="Shopping list">
+        <button type="button" class="aside-action" data-act="shop-add">
           ${ICONS.cart}<span>ADD TO SHOPPING LIST</span>
         </button>
         <button type="button" class="aside-action ${recipe.favorite ? "on" : ""}" data-act="toggle-favorite">
@@ -263,7 +265,8 @@
       return { view: "detail", recipeId: id };
     }
     if (parts[0] === "settings") return { view: "settings" };
-    if (["menus", "planner", "shopping"].includes(parts[0])) {
+    if (parts[0] === "shopping") return { view: "shopping" };
+    if (["menus", "planner"].includes(parts[0])) {
       return { view: "soon", name: parts[0] };
     }
     if (parts[0] === "disclaimer") return { view: "disclaimer" };
@@ -286,14 +289,19 @@
     state.sortOpen = false;
     state.filterOpen = false;
     state.cookOpen = false;
+    state.shopOpen = false;
     state.suggestOpen = false;
     state.suggestIndex = -1;
     if (leavingRecipe) state.postSaveExport = false;
+    if (r.view !== "detail") state.shopToast = false;
     if (r.view === "cook") {
       state.cookScale = r.scale || 1;
       state.cookChecks = { ingredients: {}, instructions: {} };
     }
-    if (r.view === "detail") state.detailScale = 1;
+    if (r.view === "detail") {
+      state.detailScale = 1;
+      if (r.recipeId) RecipeShopping.setLastRecipeId(r.recipeId);
+    }
     if (r.view === "edit") {
       state.editTab = 0;
       state.editError = "";
@@ -672,11 +680,11 @@
   function drawerHtml() {
     if (!state.drawer) return "";
     const nav = [
-      ["#/", "Recipes", ICONS.cup, true],
-      ["#/menus", "Menus", ICONS.plate, false],
-      ["#/planner", "Planner", ICONS.cal, false],
-      ["#/shopping", "Shopping List", ICONS.check, false],
-      ["#/settings", "Settings", ICONS.gear, false],
+      ["#/", "Recipes", ICONS.cup, "list"],
+      ["#/menus", "Menus", ICONS.plate, "soon"],
+      ["#/planner", "Planner", ICONS.cal, "soon"],
+      ["#/shopping", "Shopping List", ICONS.check, "shopping"],
+      ["#/settings", "Settings", ICONS.gear, "settings"],
     ];
     return `<div class="drawer">
       <div class="drawer-panel">
@@ -686,12 +694,8 @@
         </div>
         ${nav
           .map(
-            ([href, label, icon, home]) =>
-              `<button class="nav-item ${
-                (home && state.view === "list") || (label === "Settings" && state.view === "settings")
-                  ? "active"
-                  : ""
-              }" data-go="${href}">${icon}${label}</button>`
+            ([href, label, icon, key]) =>
+              `<button class="nav-item ${state.view === key || (key === "list" && state.view === "list") ? "active" : ""}" data-go="${href}">${icon}${label}</button>`
           )
           .join("")}
         <div class="drawer-foot">Last synced ${h(RecipeDB.lastSyncedLabel())}</div>
@@ -729,6 +733,7 @@
           state.exportOpen
             ? `<div class="menu mobile-only">
                 <button type="button" data-act="cook-now">COOK NOW</button>
+                <button type="button" data-act="shop-add">ADD TO SHOPPING LIST</button>
                 <button type="button" data-act="download-recipe-txt">DOWNLOAD .TXT</button>
                 ${
                   RecipeExport.canShareRecipeFile(recipe)
@@ -788,6 +793,8 @@
           ${detailAside(recipe)}
         </div>
         ${state.cookOpen ? cookModal(recipe) : ""}
+        ${state.shopOpen ? shopScaleModal(recipe) : ""}
+        ${state.shopToast ? shopAddedToast() : ""}
         ${siteFooter()}
       </div>`;
   }
@@ -810,6 +817,42 @@
           <button class="btn-primary" data-act="cook-go">COOK NOW</button>
         </div>
         <button class="btn-cancel" data-act="cook-cancel">CANCEL</button>
+      </div>
+    </div>`;
+  }
+
+  function shopScaleModal(recipe) {
+    const idx = SCALE_OPTIONS.findIndex((o) => Math.abs(o.value - state.scalePick) < 1e-9);
+    const pct = (idx / (SCALE_OPTIONS.length - 1)) * 100;
+    return `<div class="overlay">
+      <div>
+        <div class="modal">
+          <p class="eyebrow">SHOPPING LIST</p>
+          <h3>SCALE RECIPE</h3>
+          <p class="modal-note">Add ingredients from ${h(recipe.title)} at the selected scale.</p>
+          <div class="scale-row">
+            ${SCALE_OPTIONS.map(
+              (o) =>
+                `<button class="${Math.abs(o.value - state.scalePick) < 1e-9 ? "on" : ""}" data-act="scale" data-scale="${o.value}">${o.label}</button>`
+            ).join("")}
+          </div>
+          <div class="scale-track"><div class="line"></div><div class="thumb" style="left:${pct}%"></div></div>
+          <button class="btn-primary" data-act="shop-go">ADD TO LIST</button>
+        </div>
+        <button class="btn-cancel" data-act="shop-cancel">CANCEL</button>
+      </div>
+    </div>`;
+  }
+
+  function shopAddedToast() {
+    return `<div class="overlay shop-toast-overlay">
+      <div class="overlay-backdrop" data-act="shop-toast-close" aria-hidden="true"></div>
+      <div class="modal shop-toast-modal" role="dialog" aria-labelledby="shop-toast-title">
+        <p class="eyebrow">SHOPPING LIST</p>
+        <h3 id="shop-toast-title">Added</h3>
+        <p class="modal-note">Ingredients were added to your shopping list on this device.</p>
+        <button type="button" class="btn-primary" data-act="shop-toast-view">VIEW SHOPPING LIST</button>
+        <button type="button" class="btn-cancel shop-toast-close-btn" data-act="shop-toast-close">CLOSE</button>
       </div>
     </div>`;
   }
@@ -1006,7 +1049,7 @@
   }
 
   function soonView(name) {
-    const labels = { menus: "Menus", planner: "Planner", shopping: "Shopping List" };
+    const labels = { menus: "Menus", planner: "Planner" };
     return `
       <div class="screen">
         ${drawerHtml()}
@@ -1020,6 +1063,91 @@
         <div class="soon">
           <h2>${h(labels[name] || name)}</h2>
           <p>Not built yet — see the punch list.</p>
+        </div>
+        ${siteFooter()}
+      </div>`;
+  }
+
+  function collectScaledIngredientItems(recipeId, scale) {
+    const groups = RecipeDB.getIngredientGroups(recipeId);
+    const items = [];
+    groups.forEach((g) => {
+      g.items.forEach((item) => {
+        const fmt = RecipeParser.formatIngredientParts(
+          {
+            quantity: item.quantity,
+            rest: item.rest,
+            unit: item.unit,
+            raw: item.raw,
+          },
+          scale,
+          {}
+        );
+        if (!fmt || !fmt.text) return;
+        items.push({ text: fmt.text, heading: g.heading || "" });
+      });
+    });
+    return items;
+  }
+
+  function shoppingView() {
+    const entries = RecipeShopping.getEntries();
+    const lastId = RecipeShopping.getLastRecipeId();
+    const backHref = lastId ? `#/recipe/${lastId}` : "#/";
+    const backLabel = lastId ? "Back to recipe" : "Back to recipes";
+    const canNotes = RecipeShopping.canExportToNotes();
+    const body = !entries.length
+      ? `<div class="shop-empty">
+          <p>Your shopping list is empty.</p>
+          <p class="shop-empty-hint">Open a recipe and use <strong>Add to Shopping List</strong> to add ingredients. The list stays on this device only.</p>
+        </div>`
+      : entries
+          .map((entry) => {
+            const scaled = Math.abs(entry.scale - 1) > 1e-9;
+            const scaleNote = scaled ? ` · ×${h(entry.scaleLabel)}` : "";
+            let lastHeading = null;
+            const rows = (entry.items || [])
+              .map((item) => {
+                let heading = "";
+                if (item.heading && item.heading !== lastHeading) {
+                  heading = `<div class="group-heading">${h(item.heading)}</div>`;
+                  lastHeading = item.heading;
+                }
+                return `${heading}<li class="shop-item">${h(item.text)}</li>`;
+              })
+              .join("");
+            return `<section class="shop-group">
+              <div class="shop-group-head">
+                <h2><a href="#/recipe/${entry.recipeId}" data-go="#/recipe/${entry.recipeId}">${h(entry.recipeTitle)}</a></h2>
+                <span>${h(String(entry.items.length))} item${entry.items.length === 1 ? "" : "s"}${scaleNote}</span>
+              </div>
+              <ul class="shop-list">${rows}</ul>
+            </section>`;
+          })
+          .join("");
+
+    return `
+      <div class="screen screen-shopping">
+        ${drawerHtml()}
+        ${deskHeader("shopping")}
+        ${deskSubnav("list")}
+        <header class="topbar mobile-only">
+          <button class="icon-btn" data-act="drawer">${ICONS.menu}</button>
+          <h1>Shopping List</h1>
+          <span></span>
+        </header>
+        <div class="shop-page">
+          <div class="shop-toolbar">
+            <button type="button" class="btn-secondary" data-go="${backHref}">${h(backLabel)}</button>
+            <button type="button" class="btn-secondary" data-act="shop-clear" ${entries.length ? "" : "disabled"}>Clear list</button>
+            ${
+              canNotes
+                ? `<button type="button" class="btn-primary-inline" data-act="shop-export-notes" ${entries.length ? "" : "disabled"}>Export List to Notes</button>`
+                : ""
+            }
+          </div>
+          <p class="shop-device-note">Stored on this device only — not synced across browsers.</p>
+          ${body}
         </div>
         ${siteFooter()}
       </div>`;
@@ -1059,14 +1187,17 @@
     }
 
     if (r.view === "list") app.innerHTML = listView();
-    else if (r.view === "detail") app.innerHTML = detailView();
-    else if (r.view === "edit") {
+    else if (r.view === "detail") {
+      if (r.recipeId) RecipeShopping.setLastRecipeId(r.recipeId);
+      app.innerHTML = detailView();
+    } else if (r.view === "edit") {
       if (!state.editDraft) state.editDraft = loadDraft(r.recipeId);
       app.innerHTML = editView();
     } else if (r.view === "cook") {
       state.cookScale = r.scale || 1;
       app.innerHTML = cookView();
     } else if (r.view === "settings") app.innerHTML = settingsView();
+    else if (r.view === "shopping") app.innerHTML = shoppingView();
     else app.innerHTML = soonView(r.name);
 
     RecipeImages.hydrate(app).catch(() => {});
@@ -1204,6 +1335,53 @@
       state.cookOpen = false;
       state.cookChecks = { ingredients: {}, instructions: {} };
       go(`#/recipe/${id}/cook?scale=${s}`);
+    } else if (act === "shop-add") {
+      state.exportOpen = false;
+      state.cookOpen = false;
+      state.shopOpen = true;
+      state.scalePick = state.detailScale || 1;
+      render();
+    } else if (act === "shop-cancel") {
+      state.shopOpen = false;
+      render();
+    } else if (act === "shop-go") {
+      const recipe = RecipeDB.getRecipe(state.recipeId);
+      if (!recipe) return;
+      const scale = state.scalePick || 1;
+      const scaleLabel = (SCALE_OPTIONS.find((o) => Math.abs(o.value - scale) < 1e-9) || {}).label || String(scale);
+      const items = collectScaledIngredientItems(recipe.id, scale);
+      if (!items.length) {
+        alert("This recipe has no ingredients to add.");
+        return;
+      }
+      RecipeShopping.addRecipe({
+        recipeId: recipe.id,
+        recipeTitle: recipe.title,
+        scale,
+        scaleLabel,
+        items,
+      });
+      state.shopOpen = false;
+      state.shopToast = true;
+      render();
+    } else if (act === "shop-toast-close") {
+      state.shopToast = false;
+      render();
+    } else if (act === "shop-toast-view") {
+      state.shopToast = false;
+      go("#/shopping");
+    } else if (act === "shop-clear") {
+      if (!RecipeShopping.getEntries().length) return;
+      if (!confirm("Clear the entire shopping list? This cannot be undone.")) return;
+      RecipeShopping.clear();
+      render();
+    } else if (act === "shop-export-notes") {
+      try {
+        await RecipeShopping.exportToNotes();
+      } catch (err) {
+        if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) return;
+        alert(err.message || String(err));
+      }
     } else if (act === "toggle-favorite") {
       const recipe = RecipeDB.getRecipe(state.recipeId);
       if (recipe) {

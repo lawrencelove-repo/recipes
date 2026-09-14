@@ -614,6 +614,118 @@ button, input, textarea { font-family: inherit; }
   letter-spacing: 0.08em;
   font-size: 22px;
 }
+.modal-note {
+  margin: -12px 0 18px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.shop-toast-overlay {
+  position: fixed;
+}
+.shop-toast-overlay .overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+.shop-toast-modal {
+  position: relative;
+  z-index: 1;
+}
+.shop-toast-modal .btn-cancel {
+  margin-top: 8px;
+}
+.shop-toast-modal h3 {
+  margin-bottom: 10px;
+}
+
+.shop-page {
+  padding: 16px 16px 40px;
+}
+.shop-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.shop-toolbar .btn-secondary,
+.shop-toolbar .btn-primary-inline {
+  border: none;
+  padding: 10px 14px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.shop-toolbar .btn-secondary {
+  background: #e8e8e8;
+  color: #333;
+}
+.shop-toolbar .btn-primary-inline {
+  background: var(--accent-hot);
+  color: #fff;
+}
+.shop-toolbar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.shop-device-note {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.shop-empty {
+  padding: 24px 8px;
+  color: #555;
+}
+.shop-empty p { margin: 0 0 10px; line-height: 1.45; }
+.shop-empty-hint { font-size: 14px; color: var(--muted); }
+.shop-group {
+  margin-bottom: 28px;
+}
+.shop-group-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.shop-group-head h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 22px;
+  font-weight: 400;
+}
+.shop-group-head h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+.shop-group-head h2 a:hover {
+  color: var(--accent-hot);
+}
+.shop-group-head span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.shop-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.shop-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 16px;
+  line-height: 1.4;
+}
+.shop-group .group-heading {
+  margin-top: 14px;
+}
+
 .scale-row {
   display: flex;
   justify-content: space-between;
@@ -1521,6 +1633,11 @@ button, input, textarea { font-family: inherit; }
   }
   .cook-item-body {
     font-size: 20px;
+  }
+  .shop-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 28px 28px 64px;
   }
   .settings {
     padding: 28px 28px 48px;

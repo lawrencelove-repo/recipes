@@ -789,6 +789,80 @@ button, input, textarea { font-family: inherit; }
   font-size: 15px;
 }
 
+.cook-top-title {
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.cook-detail {
+  padding-bottom: 32px;
+}
+.cook-detail h2 {
+  font-size: 28px;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.cook-scale-note {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+.cook-screen .section-label {
+  margin-top: 22px;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.cook-screen .group-heading {
+  margin: 18px 0 4px;
+  font-size: 17px;
+}
+.cook-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cook-item label {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.cook-item input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  margin: 3px 0 0;
+  accent-color: var(--accent-hot);
+  flex-shrink: 0;
+}
+.cook-item-body {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 10px;
+  font-size: 19px;
+  line-height: 1.45;
+  min-width: 0;
+}
+.cook-item-body.plain,
+.cook-steps .cook-item-body {
+  display: block;
+}
+.cook-item-body .n {
+  font-weight: 700;
+}
+.cook-item.done .cook-item-body {
+  opacity: 0.42;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.cook-item.done .qty-scaled {
+  color: inherit;
+}
+
 .error {
   color: #ffb4b4;
   font-size: 13px;
@@ -1239,6 +1313,12 @@ button, input, textarea { font-family: inherit; }
     opacity: 0.45;
     cursor: default;
   }
+  .aside-action-primary,
+  .aside-action-primary span {
+    color: var(--accent-hot);
+    font-weight: 700;
+  }
+  .aside-action-primary svg { fill: var(--accent-hot); }
   .aside-meta {
     padding: 16px 0;
     border-bottom: 1px solid var(--line);
@@ -1267,6 +1347,19 @@ button, input, textarea { font-family: inherit; }
     letter-spacing: 0.04em;
     cursor: pointer;
     padding: 0;
+  }
+  .aside-cook-btn {
+    display: block;
+    width: 100%;
+    margin-top: 14px;
+    border: none;
+    background: var(--accent-hot);
+    color: #fff;
+    padding: 12px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
   }
   .desk-scale {
     justify-content: space-between;
@@ -1413,6 +1506,21 @@ button, input, textarea { font-family: inherit; }
 
   .disclaimer {
     padding: 28px 28px 48px;
+  }
+  .cook-screen .timer-bar {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .cook-detail {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 28px 28px 64px;
+  }
+  .cook-detail h2 {
+    font-size: 34px;
+  }
+  .cook-item-body {
+    font-size: 20px;
   }
   .settings {
     padding: 28px 28px 48px;

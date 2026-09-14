@@ -49,6 +49,7 @@
     enabledMode: "enabled",
     scalePick: 1,
     cookScale: 1,
+    cookChecks: { ingredients: {}, instructions: {} },
     detailScale: 1,
     suggestIndex: -1,
     suggestOpen: false,
@@ -196,6 +197,9 @@
     const scale = state.detailScale || 1;
     return `
       <aside class="detail-aside desktop-only">
+        <button type="button" class="aside-action aside-action-primary" data-act="cook-now">
+          ${ICONS.fork}<span>COOK NOW</span>
+        </button>
         <button type="button" class="aside-action" data-act="soon" data-soon="Shopping list">
           ${ICONS.cart}<span>ADD TO SHOPPING LIST</span>
         </button>
@@ -233,7 +237,6 @@
         <div class="aside-scale">
           <div class="aside-scale-head">
             <span>SCALE RECIPE</span>
-            <button type="button" class="text-link" data-act="cook-now">COOK NOW</button>
           </div>
           <div class="scale-row desk-scale">
             ${SCALE_OPTIONS.map(
@@ -241,6 +244,7 @@
                 `<button type="button" class="${Math.abs(o.value - scale) < 1e-9 ? "on" : ""}" data-act="detail-scale" data-scale="${o.value}">${o.label}</button>`
             ).join("")}
           </div>
+          <button type="button" class="aside-cook-btn" data-act="cook-now">COOK NOW</button>
         </div>
       </aside>`;
   }
@@ -285,7 +289,10 @@
     state.suggestOpen = false;
     state.suggestIndex = -1;
     if (leavingRecipe) state.postSaveExport = false;
-    if (r.view === "cook") state.cookScale = r.scale || 1;
+    if (r.view === "cook") {
+      state.cookScale = r.scale || 1;
+      state.cookChecks = { ingredients: {}, instructions: {} };
+    }
     if (r.view === "detail") state.detailScale = 1;
     if (r.view === "edit") {
       state.editTab = 0;
@@ -365,6 +372,65 @@
           })
           .join("");
         return `${heading}<ol class="steps">${steps}</ol>`;
+      })
+      .join("");
+  }
+
+  function cookCheckId(kind, groupIndex, itemIndex) {
+    return `${kind}-${groupIndex}-${itemIndex}`;
+  }
+
+  function renderCookIngredients(groups, scale, scaledStyle) {
+    return groups
+      .map((g, gi) => {
+        const heading = g.heading ? `<div class="group-heading">${h(g.heading)}</div>` : "";
+        const items = g.items
+          .map((item, ii) => {
+            const id = cookCheckId("ing", gi, ii);
+            const checked = !!state.cookChecks.ingredients[id];
+            const parsed = {
+              quantity: item.quantity,
+              rest: item.rest,
+              unit: item.unit,
+              raw: item.raw,
+            };
+            const fmt = RecipeParser.formatIngredientParts(parsed, scale, { scaledStyle });
+            const body = fmt.qtyHtml
+              ? `<span class="qty${fmt.scaled ? " qty-scaled" : ""}">${fmt.qtyHtml}</span><span class="ing-rest">${fmt.restHtml}</span>`
+              : `<span class="ing-rest">${fmt.html}</span>`;
+            return `<li class="cook-item${checked ? " done" : ""}">
+              <label>
+                <input type="checkbox" data-cook-check data-kind="ingredients" data-id="${id}"${checked ? " checked" : ""}>
+                <span class="cook-item-body${fmt.qtyHtml ? "" : " plain"}">${body}</span>
+              </label>
+            </li>`;
+          })
+          .join("");
+        return `${heading}<ul class="cook-list">${items}</ul>`;
+      })
+      .join("");
+  }
+
+  function renderCookInstructions(groups) {
+    let n = 1;
+    return groups
+      .map((g, gi) => {
+        const heading = g.heading ? `<div class="group-heading">${h(g.heading)}</div>` : "";
+        const steps = g.steps
+          .map((step, si) => {
+            const id = cookCheckId("inst", gi, si);
+            const checked = !!state.cookChecks.instructions[id];
+            const html = RecipeParser.instructionStepToHtml(step);
+            const extraLead = "<br>".repeat(step.leadingBreaks || 0);
+            return `<li class="cook-item${checked ? " done" : ""}">
+              <label>
+                <input type="checkbox" data-cook-check data-kind="instructions" data-id="${id}"${checked ? " checked" : ""}>
+                <span class="cook-item-body">${extraLead}<span class="n">${n++}.</span> <span>${html}</span></span>
+              </label>
+            </li>`;
+          })
+          .join("");
+        return `${heading}<ol class="cook-list cook-steps">${steps}</ol>`;
       })
       .join("");
   }
@@ -754,20 +820,23 @@
     const ings = RecipeDB.getIngredientGroups(recipe.id);
     const inst = RecipeDB.getInstructionGroups(recipe.id);
     const scaled = Math.abs(state.cookScale - 1) > 1e-9;
+    const scaleLabel = SCALE_OPTIONS.find((o) => Math.abs(o.value - state.cookScale) < 1e-9);
+    const scaleText = scaleLabel ? scaleLabel.label : String(state.cookScale);
     return `
-      <div class="screen">
+      <div class="screen cook-screen">
         <header class="topbar">
           <button class="icon-btn circle" data-go="#/recipe/${recipe.id}">${ICONS.back}</button>
-          <span></span>
+          <span class="cook-top-title">Cook</span>
           <button class="topbar-link" data-go="#/recipe/${recipe.id}">FINISH</button>
         </header>
         <button class="timer-bar" data-act="timer">SET TIMER</button>
-        <div class="detail">
+        <div class="detail cook-detail">
           <h2>${h(recipe.title)}</h2>
+          <p class="cook-scale-note">${scaled ? `Scaled × ${h(scaleText)}` : "Original scale"}</p>
           <div class="section-label">INGREDIENTS</div>
-          ${renderIngredients(ings, state.cookScale, scaled)}
+          ${renderCookIngredients(ings, state.cookScale, scaled)}
           <div class="section-label">INSTRUCTIONS</div>
-          ${renderInstructions(inst)}
+          ${renderCookInstructions(inst)}
         </div>
         ${siteFooter()}
       </div>`;
@@ -1049,11 +1118,25 @@
       await ensureDb();
       const r = routeFromHash();
       if (r.view === "edit") state.editDraft = loadDraft(r.recipeId);
-      if (r.view === "cook") state.cookScale = r.scale || 1;
+      if (r.view === "cook") {
+        state.cookScale = r.scale || 1;
+        state.cookChecks = { ingredients: {}, instructions: {} };
+      }
       render();
     } catch (err) {
       app.innerHTML = `<div class="soon"><h2>Could not start</h2><p>${h(err.message)}</p></div>`;
     }
+  });
+
+  app.addEventListener("change", (e) => {
+    const cb = e.target.closest("[data-cook-check]");
+    if (!cb) return;
+    const kind = cb.getAttribute("data-kind");
+    const id = cb.getAttribute("data-id");
+    if (!kind || !id || !state.cookChecks[kind]) return;
+    state.cookChecks[kind][id] = cb.checked;
+    const item = cb.closest(".cook-item");
+    if (item) item.classList.toggle("done", cb.checked);
   });
 
   app.addEventListener("click", async (e) => {
@@ -1104,7 +1187,7 @@
     } else if (act === "cook-now") {
       state.exportOpen = false;
       state.cookOpen = true;
-      state.scalePick = 1;
+      state.scalePick = state.detailScale || 1;
       render();
     } else if (act === "cook-cancel") {
       state.cookOpen = false;
@@ -1119,6 +1202,7 @@
       const id = state.recipeId;
       const s = state.scalePick;
       state.cookOpen = false;
+      state.cookChecks = { ingredients: {}, instructions: {} };
       go(`#/recipe/${id}/cook?scale=${s}`);
     } else if (act === "toggle-favorite") {
       const recipe = RecipeDB.getRecipe(state.recipeId);
@@ -1471,7 +1555,10 @@
       state.view = r.view;
       state.recipeId = r.recipeId || null;
       if (r.view === "edit") state.editDraft = loadDraft(r.recipeId);
-      if (r.view === "cook") state.cookScale = r.scale || 1;
+      if (r.view === "cook") {
+        state.cookScale = r.scale || 1;
+        state.cookChecks = { ingredients: {}, instructions: {} };
+      }
       render();
     } catch (err) {
       app.innerHTML = `<div class="soon"><h2>Could not start</h2><p>${h(err.message)}</p><p>This app needs to be served over http (GitHub Pages or a local static server), not opened as a file.</p></div>`;

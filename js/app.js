@@ -731,15 +731,18 @@
         </header>
         ${
           state.exportOpen
-            ? `<div class="menu mobile-only">
-                <button type="button" data-act="cook-now">COOK NOW</button>
-                <button type="button" data-act="shop-add">ADD TO SHOPPING LIST</button>
-                <button type="button" data-act="download-recipe-txt">DOWNLOAD .TXT</button>
-                ${
-                  RecipeExport.canShareRecipeFile(recipe)
-                    ? `<button type="button" data-act="share-recipe-file">SHARE .TXT</button>`
-                    : ""
-                }
+            ? `<div class="menu-layer mobile-only">
+                <div class="menu-backdrop" data-act="export-close" aria-hidden="true"></div>
+                <div class="menu" role="menu">
+                  <button type="button" data-act="cook-now">COOK NOW</button>
+                  <button type="button" data-act="shop-add">ADD TO SHOPPING LIST</button>
+                  <button type="button" data-act="download-recipe-txt">DOWNLOAD .TXT</button>
+                  ${
+                    RecipeExport.canShareRecipeFile(recipe)
+                      ? `<button type="button" data-act="share-recipe-file">SHARE .TXT</button>`
+                      : ""
+                  }
+                </div>
               </div>`
             : ""
         }
@@ -1319,6 +1322,9 @@
       render();
     } else if (act === "export") {
       state.exportOpen = !state.exportOpen;
+      render();
+    } else if (act === "export-close") {
+      state.exportOpen = false;
       render();
     } else if (act === "cook-now") {
       state.exportOpen = false;

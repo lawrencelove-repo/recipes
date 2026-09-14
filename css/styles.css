@@ -563,6 +563,19 @@ button, input, textarea { font-family: inherit; }
   padding: 8px 10px;
 }
 
+.menu-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  pointer-events: auto;
+  background: transparent;
+}
 .menu {
   position: absolute;
   right: 8px;
@@ -572,6 +585,7 @@ button, input, textarea { font-family: inherit; }
   min-width: 180px;
   z-index: 20;
   box-shadow: none;
+  pointer-events: auto;
 }
 .menu button {
   display: block;

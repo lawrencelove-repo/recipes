@@ -44,7 +44,7 @@
     filterOpen: false,
     cookOpen: false,
     shopOpen: false,
-    shopToast: false,
+    shopToast: false, // false | "added" | "already"
     search: "",
     sort: "title",
     favoritesOnly: false,
@@ -845,12 +845,17 @@
   }
 
   function shopAddedToast() {
+    const already = state.shopToast === "already";
     return `<div class="overlay shop-toast-overlay">
       <div class="overlay-backdrop" data-act="shop-toast-close" aria-hidden="true"></div>
       <div class="modal shop-toast-modal" role="dialog" aria-labelledby="shop-toast-title">
         <p class="eyebrow">SHOPPING LIST</p>
-        <h3 id="shop-toast-title">Added</h3>
-        <p class="modal-note">Ingredients were added to your shopping list on this device.</p>
+        <h3 id="shop-toast-title">${already ? "Already added" : "Added"}</h3>
+        <p class="modal-note">${
+          already
+            ? "This recipe is already on your shopping list."
+            : "Ingredients were added to your shopping list on this device."
+        }</p>
         <button type="button" class="btn-primary" data-act="shop-toast-view">VIEW SHOPPING LIST</button>
         <button type="button" class="btn-cancel shop-toast-close-btn" data-act="shop-toast-close">CLOSE</button>
       </div>
@@ -1338,6 +1343,12 @@
     } else if (act === "shop-add") {
       state.exportOpen = false;
       state.cookOpen = false;
+      if (RecipeShopping.hasRecipe(state.recipeId)) {
+        state.shopOpen = false;
+        state.shopToast = "already";
+        render();
+        return;
+      }
       state.shopOpen = true;
       state.scalePick = state.detailScale || 1;
       render();
@@ -1347,6 +1358,12 @@
     } else if (act === "shop-go") {
       const recipe = RecipeDB.getRecipe(state.recipeId);
       if (!recipe) return;
+      if (RecipeShopping.hasRecipe(recipe.id)) {
+        state.shopOpen = false;
+        state.shopToast = "already";
+        render();
+        return;
+      }
       const scale = state.scalePick || 1;
       const scaleLabel = (SCALE_OPTIONS.find((o) => Math.abs(o.value - scale) < 1e-9) || {}).label || String(scale);
       const items = collectScaledIngredientItems(recipe.id, scale);
@@ -1362,7 +1379,7 @@
         items,
       });
       state.shopOpen = false;
-      state.shopToast = true;
+      state.shopToast = "added";
       render();
     } else if (act === "shop-toast-close") {
       state.shopToast = false;

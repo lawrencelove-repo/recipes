@@ -42,11 +42,20 @@
     save(data);
   }
 
+  function hasRecipe(recipeId) {
+    const id = Number(recipeId);
+    return getEntries().some((e) => Number(e.recipeId) === id);
+  }
+
   function addRecipe({ recipeId, recipeTitle, scale, scaleLabel, items }) {
     const data = load();
+    const id = Number(recipeId);
+    if (data.entries.some((e) => Number(e.recipeId) === id)) {
+      throw new Error("This recipe is already on your shopping list.");
+    }
     const entry = {
       id: uid(),
-      recipeId: Number(recipeId),
+      recipeId: id,
       recipeTitle: String(recipeTitle || "Recipe"),
       scale: Number(scale) || 1,
       scaleLabel: String(scaleLabel || scale || "1"),
@@ -59,8 +68,6 @@
         }))
         .filter((item) => item.text),
     };
-    // Replace an existing group for the same recipe so re-adding updates scale/items.
-    data.entries = data.entries.filter((e) => Number(e.recipeId) !== entry.recipeId);
     data.entries.push(entry);
     data.lastRecipeId = entry.recipeId;
     save(data);
@@ -170,6 +177,7 @@
   global.RecipeShopping = {
     load,
     getEntries,
+    hasRecipe,
     getLastRecipeId,
     setLastRecipeId,
     addRecipe,

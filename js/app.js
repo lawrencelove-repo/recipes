@@ -151,7 +151,6 @@
     const nav = [
       ["#/", "recipes", "list"],
       ["#/menus", "menus", "soon"],
-      ["#/planner", "planner", "soon"],
       ["#/shopping", "shopping", "shopping"],
       ["#/settings", "settings", "settings"],
     ];
@@ -685,7 +684,6 @@
     const nav = [
       ["#/", "Recipes", ICONS.cup, "list"],
       ["#/menus", "Menus", ICONS.plate, "soon"],
-      ["#/planner", "Planner", ICONS.cal, "soon"],
       ["#/shopping", "Shopping List", ICONS.check, "shopping"],
       ["#/settings", "Settings", ICONS.gear, "settings"],
     ];
@@ -739,10 +737,6 @@
                 <div class="action-sheet" role="menu">
                   <div class="action-sheet-panel">
                     <button type="button" class="action-sheet-btn" data-act="cook-now">COOK NOW</button>
-                    <button type="button" class="action-sheet-btn" data-act="soon" data-soon="Add to planner">
-                      <span class="action-sheet-icon" aria-hidden="true">${ICONS.cal}</span>
-                      <span class="action-sheet-label">ADD TO PLANNER</span>
-                    </button>
                     <button type="button" class="action-sheet-btn" data-act="shop-add">
                       <span class="action-sheet-icon" aria-hidden="true">${ICONS.checkbox}</span>
                       <span class="action-sheet-label">ADD TO SHOPPING LIST</span>
@@ -1072,7 +1066,7 @@
   }
 
   function soonView(name) {
-    const labels = { menus: "Menus", planner: "Planner" };
+    const labels = { menus: "Menus" };
     return `
       <div class="screen">
         ${drawerHtml()}

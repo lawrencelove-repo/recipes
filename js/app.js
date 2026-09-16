@@ -27,6 +27,9 @@
     share: '<svg viewBox="0 0 24 24"><path d="M18 16.1a2.9 2.9 0 0 0-2 .8l-7.1-4.1a3 3 0 0 0 0-1.6L16 7.1a3 3 0 1 0-1-1.7L7.9 9.5a3 3 0 1 0 0 5l7.1 4.1a2.9 2.9 0 1 0 3-2.5z"/></svg>',
     link: '<svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14V3zM5 5h6v2H7v10h10v-4h2v6H5V5z"/></svg>',
     cart: '<svg viewBox="0 0 24 24"><path d="M7 18a2 2 0 1 0 .01 4.01A2 2 0 0 0 7 18zm10 0a2 2 0 1 0 .01 4.01A2 2 0 0 0 17 18zM7.2 14h9.9l2.1-8H6.1L5.2 3H2v2h2l3.2 9.4L6.1 17H19v-2H7.2z"/></svg>',
+    checkbox:
+      '<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
+    mail: '<svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.25"/><path d="M15.5 15.5L21 21"/></svg>',
   };
 
@@ -733,15 +736,23 @@
           state.exportOpen
             ? `<div class="menu-layer mobile-only">
                 <div class="menu-backdrop" data-act="export-close" aria-hidden="true"></div>
-                <div class="menu" role="menu">
-                  <button type="button" data-act="cook-now">COOK NOW</button>
-                  <button type="button" data-act="shop-add">ADD TO SHOPPING LIST</button>
-                  <button type="button" data-act="download-recipe-txt">DOWNLOAD .TXT</button>
-                  ${
-                    RecipeExport.canShareRecipeFile(recipe)
-                      ? `<button type="button" data-act="share-recipe-file">SHARE .TXT</button>`
-                      : ""
-                  }
+                <div class="action-sheet" role="menu">
+                  <div class="action-sheet-panel">
+                    <button type="button" class="action-sheet-btn" data-act="cook-now">COOK NOW</button>
+                    <button type="button" class="action-sheet-btn" data-act="soon" data-soon="Add to planner">
+                      <span class="action-sheet-icon" aria-hidden="true">${ICONS.cal}</span>
+                      <span class="action-sheet-label">ADD TO PLANNER</span>
+                    </button>
+                    <button type="button" class="action-sheet-btn" data-act="shop-add">
+                      <span class="action-sheet-icon" aria-hidden="true">${ICONS.checkbox}</span>
+                      <span class="action-sheet-label">ADD TO SHOPPING LIST</span>
+                    </button>
+                    <button type="button" class="action-sheet-btn" data-act="share-print">
+                      <span class="action-sheet-icon" aria-hidden="true">${ICONS.mail}</span>
+                      <span class="action-sheet-label">SHARE &amp; PRINT</span>
+                    </button>
+                    <button type="button" class="action-sheet-cancel" data-act="export-close">CANCEL</button>
+                  </div>
                 </div>
               </div>`
             : ""
@@ -806,17 +817,19 @@
     const idx = SCALE_OPTIONS.findIndex((o) => Math.abs(o.value - state.scalePick) < 1e-9);
     const pct = (idx / (SCALE_OPTIONS.length - 1)) * 100;
     return `<div class="overlay">
-      <div>
+      <div class="overlay-stack">
         <div class="modal">
           <p class="eyebrow">COOK NOW</p>
           <h3>SCALE RECIPE</h3>
-          <div class="scale-row">
-            ${SCALE_OPTIONS.map(
-              (o) =>
-                `<button class="${Math.abs(o.value - state.scalePick) < 1e-9 ? "on" : ""}" data-act="scale" data-scale="${o.value}">${o.label}</button>`
-            ).join("")}
+          <div class="scale-control">
+            <div class="scale-row">
+              ${SCALE_OPTIONS.map(
+                (o) =>
+                  `<button type="button" class="${Math.abs(o.value - state.scalePick) < 1e-9 ? "on" : ""}" data-act="scale" data-scale="${o.value}">${o.label}</button>`
+              ).join("")}
+            </div>
+            <div class="scale-track"><div class="line"></div><div class="thumb" style="left:${pct}%"></div></div>
           </div>
-          <div class="scale-track"><div class="line"></div><div class="thumb" style="left:${pct}%"></div></div>
           <button class="btn-primary" data-act="cook-go">COOK NOW</button>
         </div>
         <button class="btn-cancel" data-act="cook-cancel">CANCEL</button>
@@ -828,18 +841,20 @@
     const idx = SCALE_OPTIONS.findIndex((o) => Math.abs(o.value - state.scalePick) < 1e-9);
     const pct = (idx / (SCALE_OPTIONS.length - 1)) * 100;
     return `<div class="overlay">
-      <div>
+      <div class="overlay-stack">
         <div class="modal">
           <p class="eyebrow">SHOPPING LIST</p>
           <h3>SCALE RECIPE</h3>
           <p class="modal-note">Add ingredients from ${h(recipe.title)} at the selected scale.</p>
-          <div class="scale-row">
-            ${SCALE_OPTIONS.map(
-              (o) =>
-                `<button class="${Math.abs(o.value - state.scalePick) < 1e-9 ? "on" : ""}" data-act="scale" data-scale="${o.value}">${o.label}</button>`
-            ).join("")}
+          <div class="scale-control">
+            <div class="scale-row">
+              ${SCALE_OPTIONS.map(
+                (o) =>
+                  `<button type="button" class="${Math.abs(o.value - state.scalePick) < 1e-9 ? "on" : ""}" data-act="scale" data-scale="${o.value}">${o.label}</button>`
+              ).join("")}
+            </div>
+            <div class="scale-track"><div class="line"></div><div class="thumb" style="left:${pct}%"></div></div>
           </div>
-          <div class="scale-track"><div class="line"></div><div class="thumb" style="left:${pct}%"></div></div>
           <button class="btn-primary" data-act="shop-go">ADD TO LIST</button>
         </div>
         <button class="btn-cancel" data-act="shop-cancel">CANCEL</button>
@@ -1473,6 +1488,21 @@
       render();
     } else if (act === "print") {
       window.print();
+    } else if (act === "share-print") {
+      state.exportOpen = false;
+      render();
+      const recipe = RecipeDB.getRecipe(state.recipeId);
+      const url = location.href;
+      if (navigator.share && recipe) {
+        try {
+          await navigator.share({ title: recipe.title, text: recipe.title, url });
+        } catch (err) {
+          if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) return;
+          window.print();
+        }
+      } else {
+        window.print();
+      }
     } else if (act === "share") {
       const recipe = RecipeDB.getRecipe(state.recipeId);
       const url = location.href;
@@ -1501,6 +1531,8 @@
       if (state.view !== "list") go("#/");
       else render();
     } else if (act === "soon") {
+      state.exportOpen = false;
+      render();
       alert((actEl.getAttribute("data-soon") || "This action") + " is on the punch list and is not implemented yet.");
     } else if (act === "timer") {
       alert("SET TIMER is on the punch list and is not implemented yet.");

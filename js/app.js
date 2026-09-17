@@ -150,7 +150,6 @@
   function deskHeader(active) {
     const nav = [
       ["#/", "recipes", "list"],
-      ["#/menus", "menus", "soon"],
       ["#/shopping", "shopping", "shopping"],
       ["#/settings", "settings", "settings"],
     ];
@@ -683,7 +682,6 @@
     if (!state.drawer) return "";
     const nav = [
       ["#/", "Recipes", ICONS.cup, "list"],
-      ["#/menus", "Menus", ICONS.plate, "soon"],
       ["#/shopping", "Shopping List", ICONS.check, "shopping"],
       ["#/settings", "Settings", ICONS.gear, "settings"],
     ];

@@ -292,7 +292,7 @@ button, input, textarea { font-family: inherit; }
   display: none;
 }
 
-@media (max-width: 899px) {
+@media (max-width: 1023px) {
   .screen-list {
     height: 100dvh;
     max-height: 100dvh;
@@ -1259,7 +1259,7 @@ button, input, textarea { font-family: inherit; }
 }
 .detail-heading h2 span { flex: 1; }
 
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   html, body {
     background: #f3f3f3;
   }

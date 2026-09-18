@@ -424,6 +424,17 @@
       await persist();
     },
 
+    async deleteRecipe(id) {
+      const recipeId = Number(id);
+      if (!recipeId) throw new Error("Missing recipe id.");
+      exec("DELETE FROM instruction_steps WHERE recipe_id = ?", [recipeId]);
+      exec("DELETE FROM instruction_groups WHERE recipe_id = ?", [recipeId]);
+      exec("DELETE FROM ingredients WHERE recipe_id = ?", [recipeId]);
+      exec("DELETE FROM ingredient_groups WHERE recipe_id = ?", [recipeId]);
+      exec("DELETE FROM recipes WHERE id = ?", [recipeId]);
+      await persist();
+    },
+
     countRecipes(filter) {
       return this.listRecipes(filter).length;
     },

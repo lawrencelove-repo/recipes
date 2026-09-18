@@ -30,6 +30,7 @@
     checkbox:
       '<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
     mail: '<svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>',
+    close: '<svg viewBox="0 0 24 24"><path d="M18.3 5.71 12 12.01 5.7 5.7 4.29 7.11 10.59 13.4 4.29 19.7 5.7 21.11 12 14.82l6.3 6.29 1.41-1.41-6.29-6.3 6.29-6.29z"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.25"/><path d="M15.5 15.5L21 21"/></svg>',
   };
 
@@ -167,7 +168,14 @@
           </nav>
           <div class="desk-search" data-search-wrap>
             <div class="desk-search-row">
-              <input type="search" placeholder="Search recipes" value="${h(state.search)}" data-act="desk-search" autocomplete="off" aria-autocomplete="list">
+              <div class="search-field">
+                <input type="search" placeholder="Search recipes" value="${h(state.search)}" data-act="desk-search" autocomplete="off" aria-autocomplete="list">
+                ${
+                  state.search
+                    ? `<button type="button" class="search-clear" data-act="search-clear" title="Clear search" aria-label="Clear search">${ICONS.close}</button>`
+                    : ""
+                }
+              </div>
               <button type="button" class="desk-search-btn" data-act="search-submit" title="Search">${ICONS.search}</button>
             </div>
             ${searchSuggestHtml()}
@@ -212,7 +220,7 @@
         <button type="button" class="aside-action ${recipe.enabled ? "" : "on"}" data-act="toggle-enabled">
           ${ICONS.check}<span>${recipe.enabled ? "DISABLE RECIPE" : "ENABLE RECIPE"}</span>
         </button>
-        <button type="button" class="aside-action" data-act="soon" data-soon="Delete recipe">
+        <button type="button" class="aside-action" data-act="delete-recipe">
           ${ICONS.trash}<span>DELETE RECIPE</span>
         </button>
         <button type="button" class="aside-action" data-act="print">
@@ -688,7 +696,14 @@
     return `<div class="drawer">
       <div class="drawer-panel">
         <div class="drawer-search" data-search-wrap>
-          <input type="search" placeholder="Search Recipes" value="${h(state.search)}" data-act="search" autocomplete="off" aria-autocomplete="list">
+          <div class="search-field search-field-drawer">
+            <input type="search" placeholder="Search Recipes" value="${h(state.search)}" data-act="search" autocomplete="off" aria-autocomplete="list">
+            ${
+              state.search
+                ? `<button type="button" class="search-clear search-clear-drawer" data-act="search-clear" title="Clear search" aria-label="Clear search">${ICONS.close}</button>`
+                : ""
+            }
+          </div>
           ${searchSuggestHtml()}
         </div>
         ${nav
@@ -742,6 +757,14 @@
                     <button type="button" class="action-sheet-btn" data-act="share-print">
                       <span class="action-sheet-icon" aria-hidden="true">${ICONS.mail}</span>
                       <span class="action-sheet-label">SHARE &amp; PRINT</span>
+                    </button>
+                    <button type="button" class="action-sheet-btn" data-act="toggle-enabled">
+                      <span class="action-sheet-icon" aria-hidden="true">${ICONS.check}</span>
+                      <span class="action-sheet-label">${recipe.enabled ? "DISABLE RECIPE" : "ENABLE RECIPE"}</span>
+                    </button>
+                    <button type="button" class="action-sheet-btn" data-act="delete-recipe">
+                      <span class="action-sheet-icon" aria-hidden="true">${ICONS.trash}</span>
+                      <span class="action-sheet-label">DELETE RECIPE</span>
                     </button>
                     <button type="button" class="action-sheet-cancel" data-act="export-close">CANCEL</button>
                   </div>
@@ -972,7 +995,7 @@
           </div>
         </div>
         ${hints[state.editTab]}
-        <div class="edit-body">${body}</div>
+        <div class="edit-body" data-edit-swipe>${body}</div>
         <div class="pager mobile-only">
           ${[0, 1, 2].map((i) => `<button class="${state.editTab === i ? "on" : ""}" data-act="tab" data-tab="${i}"></button>`).join("")}
         </div>
@@ -1419,9 +1442,29 @@
         render();
       }
     } else if (act === "toggle-enabled") {
+      state.exportOpen = false;
       const recipe = RecipeDB.getRecipe(state.recipeId);
       if (recipe) {
         await RecipeDB.toggleEnabled(recipe.id, !recipe.enabled);
+        render();
+      }
+    } else if (act === "delete-recipe") {
+      state.exportOpen = false;
+      const recipe = RecipeDB.getRecipe(state.recipeId);
+      if (!recipe) return;
+      if (!confirm(`Delete “${recipe.title}”? This cannot be undone on this device.`)) {
+        render();
+        return;
+      }
+      try {
+        if (RecipeImages.isLocalRef(recipe.image)) {
+          await RecipeImages.removeRecipePhoto(recipe.id);
+        }
+        await RecipeDB.deleteRecipe(recipe.id);
+        RecipeShopping.removeRecipe(recipe.id);
+        go("#/");
+      } catch (err) {
+        alert(err.message || String(err));
         render();
       }
     } else if (act === "export-recipes") {
@@ -1522,6 +1565,11 @@
       state.suggestIndex = -1;
       if (state.view !== "list") go("#/");
       else render();
+    } else if (act === "search-clear") {
+      state.search = "";
+      state.suggestOpen = false;
+      state.suggestIndex = -1;
+      render();
     } else if (act === "soon") {
       state.exportOpen = false;
       render();
@@ -1668,6 +1716,50 @@
     // Other views: update dropdown without leaving the page.
     patchSearchSuggest();
   });
+
+  let editSwipe = null;
+  app.addEventListener(
+    "touchstart",
+    (e) => {
+      if (state.view !== "edit" || e.touches.length !== 1) {
+        editSwipe = null;
+        return;
+      }
+      if (!e.target.closest("[data-edit-swipe], .pager")) {
+        editSwipe = null;
+        return;
+      }
+      const t = e.touches[0];
+      editSwipe = {
+        x: t.clientX,
+        y: t.clientY,
+        onField: !!e.target.closest("input, textarea, select"),
+      };
+    },
+    { passive: true }
+  );
+  app.addEventListener(
+    "touchend",
+    (e) => {
+      if (!editSwipe || state.view !== "edit") {
+        editSwipe = null;
+        return;
+      }
+      const t = e.changedTouches[0];
+      const dx = t.clientX - editSwipe.x;
+      const dy = t.clientY - editSwipe.y;
+      const startedOnField = editSwipe.onField;
+      editSwipe = null;
+      const minDx = startedOnField ? 90 : 56;
+      if (Math.abs(dx) < minDx || Math.abs(dx) < Math.abs(dy) * 1.35) return;
+      const next = dx < 0 ? state.editTab + 1 : state.editTab - 1;
+      if (next < 0 || next > 2) return;
+      captureEditFields();
+      state.editTab = next;
+      render();
+    },
+    { passive: true }
+  );
 
   app.addEventListener("keydown", (e) => {
     const isSearch = e.target.matches("[data-act=search], [data-act=desk-search]");

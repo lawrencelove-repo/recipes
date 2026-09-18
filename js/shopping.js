@@ -47,6 +47,14 @@
     return getEntries().some((e) => Number(e.recipeId) === id);
   }
 
+  function removeRecipe(recipeId) {
+    const id = Number(recipeId);
+    const data = load();
+    data.entries = data.entries.filter((e) => Number(e.recipeId) !== id);
+    if (Number(data.lastRecipeId) === id) data.lastRecipeId = null;
+    save(data);
+  }
+
   function addRecipe({ recipeId, recipeTitle, scale, scaleLabel, items }) {
     const data = load();
     const id = Number(recipeId);
@@ -178,6 +186,7 @@
     load,
     getEntries,
     hasRecipe,
+    removeRecipe,
     getLastRecipeId,
     setLastRecipeId,
     addRecipe,

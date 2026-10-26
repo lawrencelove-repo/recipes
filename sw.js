@@ -1,5 +1,5 @@
 /* Recipes app shell service worker — offline-friendly cache for static assets. */
-const CACHE_VERSION = "recipes-v4";
+const CACHE_VERSION = "recipes-v5";
 const PRECACHE = [
   "./",
   "./index.html",
@@ -28,7 +28,15 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_VERSION)
-      .then((cache) => cache.addAll(PRECACHE))
+      .then((cache) =>
+        Promise.all(
+          PRECACHE.map((url) =>
+            cache.add(url).catch(() => {
+              /* skip missing optional assets so install still succeeds */
+            })
+          )
+        )
+      )
       .then(() => self.skipWaiting())
   );
 });
@@ -51,13 +59,14 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   const sameOrigin = url.origin === self.location.origin;
 
-  // App navigations: network first, fall back to cached shell.
+  // Navigations: always prefer the live server so a different app on the same
+  // port (e.g. bartesian) cannot keep showing a cached shell.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put("./index.html", copy));
+          caches.open(CACHE_VERSION).then((cache) => cache.put("./index.html", copy)).catch(() => {});
           return response;
         })
         .catch(() => caches.match("./index.html"))
@@ -65,19 +74,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Same-origin assets + recipe images: cache first, then network.
   if (sameOrigin) {
     event.respondWith(
       caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
-          if (!response || response.status !== 200 || response.type !== "basic") {
+        const networked = fetch(request)
+          .then((response) => {
+            if (response && response.status === 200) {
+              const copy = response.clone();
+              caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
+            }
             return response;
-          }
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
-          return response;
-        });
+          })
+          .catch(() => cached);
+        // Prefer network for JS/CSS so updates land without a stuck cache.
+        if (/\.(js|css)$/i.test(url.pathname)) {
+          return networked;
+        }
+        return cached || networked;
       })
     );
     return;
@@ -91,7 +104,7 @@ self.addEventListener("fetch", (event) => {
           cached ||
           fetch(request).then((response) => {
             const copy = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
             return response;
           })
       )

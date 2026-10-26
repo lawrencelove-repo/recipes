@@ -1,4 +1,7 @@
 (function () {
+  /** Keep in sync with sw.js CACHE_VERSION and index.html SW register query. */
+  const APP_VERSION = "recipes-v5";
+
   const SCALE_OPTIONS = [
     { label: "¼", value: 0.25 },
     { label: "⅓", value: 1 / 3 },
@@ -107,8 +110,31 @@
   function siteFooter() {
     return `<footer class="site-footer">
       <a href="#/disclaimer" data-go="#/disclaimer">Disclaimer</a>
+      <span>${h(APP_VERSION)}</span>
       <span>Personal, non-commercial use · Unofficial / not affiliated with Pepperplate</span>
     </footer>`;
+  }
+
+  async function forceRefreshApp() {
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((reg) => reg.unregister()));
+      }
+    } catch (_) {
+      /* continue */
+    }
+    try {
+      if (typeof caches !== "undefined") {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+    } catch (_) {
+      /* continue */
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("_refresh", String(Date.now()));
+    window.location.replace(url.toString());
   }
 
   function formatShortDate(iso) {
@@ -1112,6 +1138,15 @@
         <div class="settings">
           <h2>Settings</h2>
           <section class="settings-card">
+            <h3>Force refresh</h3>
+            <p>
+              For iPad / PWA: unregister the service worker, clear caches, and reload.
+              Keeps your local recipe database and shopping list.
+            </p>
+            <p class="settings-meta">Current build: <code>${h(APP_VERSION)}</code></p>
+            <button type="button" class="btn-primary-inline" data-act="force-refresh">Force refresh</button>
+          </section>
+          <section class="settings-card">
             <h3>Export recipes</h3>
             <p>
               Writes every recipe currently in the browser database as individual Pepperplate-style
@@ -1518,6 +1553,16 @@
         alert(err.message || String(err));
         render();
       }
+    } else if (act === "force-refresh") {
+      if (
+        !confirm(
+          "Force refresh? This clears the service worker cache and reloads. Local recipes and shopping list are kept."
+        )
+      ) {
+        return;
+      }
+      await forceRefreshApp();
+      return;
     } else if (act === "export-recipes") {
       if (state.exportBusy) return;
       state.exportBusy = true;

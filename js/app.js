@@ -1,6 +1,6 @@
 (function () {
   /** Keep in sync with sw.js CACHE_VERSION and index.html SW register query. */
-  const APP_VERSION = "recipes-v5";
+  const APP_VERSION = "recipes-v6";
 
   const SCALE_OPTIONS = [
     { label: "¼", value: 0.25 },
@@ -58,6 +58,7 @@
     enabledMode: "enabled",
     scalePick: 1,
     cookScale: 1,
+    cookSpoonMode: "up", // "up" = prefer Tbsp spoons; "down" = prefer tsp spoons
     cookChecks: { ingredients: {}, instructions: {} },
     detailScale: 1,
     suggestIndex: -1,
@@ -331,6 +332,7 @@
     if (r.view !== "detail") state.shopToast = false;
     if (r.view === "cook") {
       state.cookScale = r.scale || 1;
+      state.cookSpoonMode = "up";
       state.cookChecks = { ingredients: {}, instructions: {} };
     }
     if (r.view === "detail") {
@@ -434,37 +436,128 @@
     { tsp: 1.5, color: "#9ccfe0", label: "1/2 Tbsp" },
     { tsp: 3, color: "#e89090", label: "1 Tbsp" },
   ];
+  const TSP_SPOON_DOTS = SPOON_DOTS.filter((s) => s.tsp <= 1 + 1e-9);
+  const SPOON_HALF_TBSP = SPOON_DOTS.find((s) => Math.abs(s.tsp - 1.5) < 1e-9);
+  const SPOON_TBSP = SPOON_DOTS.find((s) => Math.abs(s.tsp - 3) < 1e-9);
+  const TSP_DEF = RecipeUnits.UNIT_DEFS.find((d) => d.singular === "teaspoon");
+  const TBSP_DEF = RecipeUnits.UNIT_DEFS.find((d) => d.singular === "tablespoon");
 
-  function spoonDotForIngredient(item, scale) {
-    if (item.quantity == null || !item.unit || !item.unit.def) return null;
-    const singular = item.unit.def.singular;
-    if (singular !== "teaspoon" && singular !== "tablespoon") return null;
+  function almostDivide(total, unit) {
+    if (unit < 1e-12) return false;
+    const n = total / unit;
+    return Math.abs(n - Math.round(n)) < 1e-6;
+  }
 
-    const qty = item.quantity * scale;
-    const tsp = singular === "tablespoon" ? qty * 3 : qty;
-    const eps = 1e-6;
+  function findExactSpoon(tsp, list) {
+    return list.find((s) => Math.abs(tsp - s.tsp) < 1e-6) || null;
+  }
 
-    for (const spoon of SPOON_DOTS) {
-      if (Math.abs(tsp - spoon.tsp) < eps) return spoon;
-    }
-
-    // Multiples of 1 Tbsp (e.g. 2 Tbsp) → use the 1 Tbsp spoon repeatedly.
-    if (tsp >= 3 - eps) {
-      const rem = ((tsp % 3) + 3) % 3;
-      if (rem < eps || Math.abs(rem - 3) < eps) {
-        return SPOON_DOTS.find((s) => Math.abs(s.tsp - 3) < eps);
+  function largestDividingSpoon(tsp, list) {
+    let best = null;
+    for (const s of list) {
+      if (tsp + 1e-9 >= s.tsp && almostDivide(tsp, s.tsp)) {
+        if (!best || s.tsp > best.tsp) best = s;
       }
     }
+    return best;
+  }
 
-    // Multiples of 1 tsp (e.g. 2 tsp) → use the 1 tsp spoon repeatedly.
-    if (tsp >= 1 - eps) {
-      const rem = ((tsp % 1) + 1) % 1;
-      if (rem < eps || Math.abs(rem - 1) < eps) {
-        return SPOON_DOTS.find((s) => Math.abs(s.tsp - 1) < eps);
-      }
+  function spoonAbbrevOriginal(def, fromUnit) {
+    if (!fromUnit || !fromUnit.isAbbrev) {
+      return def.singular === "teaspoon" ? "tsp" : "tbsp";
+    }
+    const o = String(fromUnit.original || "")
+      .toLowerCase()
+      .replace(/\.$/, "");
+    if (def.singular === "teaspoon") {
+      if (o === "t" || o === "tsp" || o === "tsps") return fromUnit.original;
+      return "tsp";
+    }
+    if (o === "tbsp" || o === "tbs" || o === "tbl" || o === "tbsps") return fromUnit.original;
+    return "tbsp";
+  }
+
+  function rewriteCookRest(item, unitDef, isAbbrev, original, qtyForUnit) {
+    if (!item.unit) return item.rest;
+    const tokens = item.rest.trim().split(/\s+/).filter(Boolean);
+    const word = RecipeUnits.formatUnitWord(unitDef, isAbbrev, original, qtyForUnit);
+    const next = tokens.slice();
+    next.splice(item.unit.index, item.unit.tokenCount, ...word.split(/\s+/));
+    return next.join(" ");
+  }
+
+  function formatCookSpoonIngredient(item, scale, spoonMode, scaledStyle) {
+    const parsed = {
+      quantity: item.quantity,
+      rest: item.rest,
+      unit: item.unit,
+      raw: item.raw,
+    };
+    const singular = item.unit && item.unit.def ? item.unit.def.singular : null;
+    const isSpoon = singular === "teaspoon" || singular === "tablespoon";
+    if (!isSpoon || item.quantity == null) {
+      return {
+        fmt: RecipeParser.formatIngredientParts(parsed, scale, { scaledStyle }),
+        spoon: null,
+      };
     }
 
-    return null;
+    const tsp = (singular === "tablespoon" ? item.quantity * 3 : item.quantity) * scale;
+    const originalTsp = singular === "tablespoon" ? item.quantity * 3 : item.quantity;
+    let displayQty = tsp;
+    let displayDef = TSP_DEF;
+    let displayIsAbbrev = !!(item.unit && item.unit.isAbbrev);
+    let displayOriginal = spoonAbbrevOriginal(TSP_DEF, item.unit);
+    let spoon = null;
+
+    if (spoonMode === "up") {
+      // Prefer tablespoon spoons when the volume matches them exactly.
+      if (almostDivide(tsp, 3) && tsp >= 3 - 1e-6) {
+        displayQty = tsp / 3;
+        displayDef = TBSP_DEF;
+        displayOriginal = spoonAbbrevOriginal(TBSP_DEF, item.unit);
+        spoon = SPOON_TBSP;
+      } else if (almostDivide(tsp, 1.5) && tsp >= 1.5 - 1e-6) {
+        displayQty = tsp / 3; // 1.5 tsp → 1/2 Tbsp
+        displayDef = TBSP_DEF;
+        displayOriginal = spoonAbbrevOriginal(TBSP_DEF, item.unit);
+        spoon = SPOON_HALF_TBSP;
+      } else {
+        displayQty = tsp;
+        displayDef = TSP_DEF;
+        displayOriginal = spoonAbbrevOriginal(TSP_DEF, item.unit);
+        spoon =
+          findExactSpoon(tsp, TSP_SPOON_DOTS) ||
+          (almostDivide(tsp, 1) && tsp >= 1 - 1e-6 ? findExactSpoon(1, TSP_SPOON_DOTS) : null) ||
+          largestDividingSpoon(tsp, TSP_SPOON_DOTS);
+      }
+    } else {
+      // Scale down: keep teaspoons; color for the scoop you'd repeat.
+      displayQty = tsp;
+      displayDef = TSP_DEF;
+      displayOriginal = spoonAbbrevOriginal(TSP_DEF, item.unit);
+      const originalSpoon = findExactSpoon(originalTsp, TSP_SPOON_DOTS);
+      spoon =
+        findExactSpoon(tsp, TSP_SPOON_DOTS) ||
+        (originalSpoon && almostDivide(tsp, originalSpoon.tsp) ? originalSpoon : null) ||
+        (almostDivide(tsp, 1) && tsp >= 1 - 1e-6 ? findExactSpoon(1, TSP_SPOON_DOTS) : null) ||
+        largestDividingSpoon(tsp, TSP_SPOON_DOTS);
+    }
+
+    if (!displayIsAbbrev) displayOriginal = displayDef.singular;
+
+    const qtyText = RecipeParser.formatQuantity(displayQty);
+    const rest = rewriteCookRest(item, displayDef, displayIsAbbrev, displayOriginal, displayQty);
+    const scaled = !!(scaledStyle && Math.abs(scale - 1) > 1e-9);
+    return {
+      fmt: {
+        qtyHtml: RecipeParser.escapeHtml(qtyText),
+        restHtml: RecipeParser.escapeHtml(rest),
+        scaled,
+        html: RecipeParser.escapeHtml([qtyText, rest].filter(Boolean).join(" ")),
+      },
+      spoon,
+    };
   }
 
   function spoonDotHtml(spoon) {
@@ -480,17 +573,10 @@
           .map((item, ii) => {
             const id = cookCheckId("ing", gi, ii);
             const checked = !!state.cookChecks.ingredients[id];
-            const parsed = {
-              quantity: item.quantity,
-              rest: item.rest,
-              unit: item.unit,
-              raw: item.raw,
-            };
-            const fmt = RecipeParser.formatIngredientParts(parsed, scale, { scaledStyle });
+            const { fmt, spoon } = formatCookSpoonIngredient(item, scale, state.cookSpoonMode, scaledStyle);
             const body = fmt.qtyHtml
               ? `<span class="qty${fmt.scaled ? " qty-scaled" : ""}">${fmt.qtyHtml}</span><span class="ing-rest">${fmt.restHtml}</span>`
               : `<span class="ing-rest">${fmt.html}</span>`;
-            const spoon = spoonDotForIngredient(item, scale);
             return `<li class="cook-item${checked ? " done" : ""}">
               <label>
                 <input type="checkbox" data-cook-check data-kind="ingredients" data-id="${id}"${checked ? " checked" : ""}>
@@ -990,7 +1076,12 @@
         <button class="timer-bar" data-act="timer">SET TIMER</button>
         <div class="detail cook-detail">
           <h2>${h(recipe.title)}</h2>
-          <p class="cook-scale-note">${scaled ? `Scaled × ${h(scaleText)}` : "Original scale"}</p>
+          <p class="cook-scale-row">
+            <span class="cook-scale-note">${scaled ? `Scaled × ${h(scaleText)}` : "Original scale"}</span>
+            <button type="button" class="cook-spoon-toggle" data-act="cook-spoon-mode">${
+              state.cookSpoonMode === "up" ? "Scale up" : "Scale down"
+            }</button>
+          </p>
           <div class="section-label">INGREDIENTS</div>
           ${renderCookIngredients(ings, state.cookScale, scaled)}
           <div class="section-label">INSTRUCTIONS</div>
@@ -1375,6 +1466,7 @@
       if (r.view === "edit") state.editDraft = loadDraft(r.recipeId);
       if (r.view === "cook") {
         state.cookScale = r.scale || 1;
+        state.cookSpoonMode = "up";
         state.cookChecks = { ingredients: {}, instructions: {} };
       }
       render();
@@ -1456,10 +1548,14 @@
     } else if (act === "detail-scale") {
       state.detailScale = Number(actEl.getAttribute("data-scale"));
       render();
+    } else if (act === "cook-spoon-mode") {
+      state.cookSpoonMode = state.cookSpoonMode === "up" ? "down" : "up";
+      render();
     } else if (act === "cook-go") {
       const id = state.recipeId;
       const s = state.scalePick;
       state.cookOpen = false;
+      state.cookSpoonMode = "up";
       state.cookChecks = { ingredients: {}, instructions: {} };
       go(`#/recipe/${id}/cook?scale=${s}`);
     } else if (act === "shop-add") {
@@ -1970,6 +2066,7 @@
       if (r.view === "edit") state.editDraft = loadDraft(r.recipeId);
       if (r.view === "cook") {
         state.cookScale = r.scale || 1;
+        state.cookSpoonMode = "up";
         state.cookChecks = { ingredients: {}, instructions: {} };
       }
       render();

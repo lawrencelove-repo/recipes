@@ -1,6 +1,6 @@
 (function () {
   /** Keep in sync with sw.js CACHE_VERSION and index.html SW register query. */
-  const APP_VERSION = "recipes-v6";
+  const APP_VERSION = "recipes-v7";
 
   const SCALE_OPTIONS = [
     { label: "¼", value: 0.25 },
@@ -58,7 +58,8 @@
     enabledMode: "enabled",
     scalePick: 1,
     cookScale: 1,
-    cookSpoonMode: "up", // "up" = prefer Tbsp spoons; "down" = prefer tsp spoons
+    // "standard" = keep tsp wording + smaller spoon colors; "up" = convert to Tbsp spoons when possible
+    cookSpoonMode: "standard",
     cookChecks: { ingredients: {}, instructions: {} },
     detailScale: 1,
     suggestIndex: -1,
@@ -332,7 +333,7 @@
     if (r.view !== "detail") state.shopToast = false;
     if (r.view === "cook") {
       state.cookScale = r.scale || 1;
-      state.cookSpoonMode = "up";
+      state.cookSpoonMode = "standard";
       state.cookChecks = { ingredients: {}, instructions: {} };
     }
     if (r.view === "detail") {
@@ -511,7 +512,7 @@
     let spoon = null;
 
     if (spoonMode === "up") {
-      // Prefer tablespoon spoons when the volume matches them exactly.
+      // Convert to tablespoon spoons when the volume matches them exactly.
       if (almostDivide(tsp, 3) && tsp >= 3 - 1e-6) {
         displayQty = tsp / 3;
         displayDef = TBSP_DEF;
@@ -532,7 +533,7 @@
           largestDividingSpoon(tsp, TSP_SPOON_DOTS);
       }
     } else {
-      // Scale down: keep teaspoons; color for the scoop you'd repeat.
+      // Standard: keep teaspoons; color for the scoop you'd repeat.
       displayQty = tsp;
       displayDef = TSP_DEF;
       displayOriginal = spoonAbbrevOriginal(TSP_DEF, item.unit);
@@ -1079,7 +1080,9 @@
           <p class="cook-scale-row">
             <span class="cook-scale-note">${scaled ? `Scaled × ${h(scaleText)}` : "Original scale"}</span>
             <button type="button" class="cook-spoon-toggle" data-act="cook-spoon-mode">${
-              state.cookSpoonMode === "up" ? "Scale up" : "Scale down"
+              state.cookSpoonMode === "up"
+                ? `Scale down <span class="cook-spoon-arrow" aria-hidden="true">↓</span>`
+                : `Scale up <span class="cook-spoon-arrow" aria-hidden="true">↑</span>`
             }</button>
           </p>
           <div class="section-label">INGREDIENTS</div>
@@ -1466,7 +1469,7 @@
       if (r.view === "edit") state.editDraft = loadDraft(r.recipeId);
       if (r.view === "cook") {
         state.cookScale = r.scale || 1;
-        state.cookSpoonMode = "up";
+        state.cookSpoonMode = "standard";
         state.cookChecks = { ingredients: {}, instructions: {} };
       }
       render();
@@ -1549,13 +1552,13 @@
       state.detailScale = Number(actEl.getAttribute("data-scale"));
       render();
     } else if (act === "cook-spoon-mode") {
-      state.cookSpoonMode = state.cookSpoonMode === "up" ? "down" : "up";
+      state.cookSpoonMode = state.cookSpoonMode === "up" ? "standard" : "up";
       render();
     } else if (act === "cook-go") {
       const id = state.recipeId;
       const s = state.scalePick;
       state.cookOpen = false;
-      state.cookSpoonMode = "up";
+      state.cookSpoonMode = "standard";
       state.cookChecks = { ingredients: {}, instructions: {} };
       go(`#/recipe/${id}/cook?scale=${s}`);
     } else if (act === "shop-add") {
@@ -2066,7 +2069,7 @@
       if (r.view === "edit") state.editDraft = loadDraft(r.recipeId);
       if (r.view === "cook") {
         state.cookScale = r.scale || 1;
-        state.cookSpoonMode = "up";
+        state.cookSpoonMode = "standard";
         state.cookChecks = { ingredients: {}, instructions: {} };
       }
       render();

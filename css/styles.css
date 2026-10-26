@@ -1071,6 +1071,10 @@ button, input, textarea { font-family: inherit; }
 .cook-spoon-toggle:hover {
   color: var(--accent);
 }
+.cook-spoon-arrow {
+  text-decoration: none;
+  font-weight: 600;
+}
 .cook-screen .section-label {
   margin-top: 22px;
   margin-bottom: 4px;

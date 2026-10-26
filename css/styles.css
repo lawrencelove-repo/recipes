@@ -1070,12 +1070,28 @@ button, input, textarea { font-family: inherit; }
   border-bottom: 1px solid var(--line);
   cursor: pointer;
 }
+.cook-ings .cook-item label {
+  grid-template-columns: 28px 14px minmax(0, 1fr);
+  gap: 10px;
+}
 .cook-item input[type="checkbox"] {
   width: 22px;
   height: 22px;
   margin: 3px 0 0;
   accent-color: var(--accent-hot);
   flex-shrink: 0;
+}
+.spoon-dot {
+  width: 12px;
+  height: 12px;
+  margin: 8px 0 0;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.spoon-dot-empty {
+  visibility: hidden;
+  pointer-events: none;
 }
 .cook-item-body {
   display: grid;
@@ -1096,6 +1112,9 @@ button, input, textarea { font-family: inherit; }
   opacity: 0.42;
   text-decoration: line-through;
   text-decoration-thickness: 1px;
+}
+.cook-item.done .spoon-dot:not(.spoon-dot-empty) {
+  opacity: 0.42;
 }
 .cook-item.done .qty-scaled {
   color: inherit;

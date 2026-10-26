@@ -397,6 +397,55 @@
     return `${kind}-${groupIndex}-${itemIndex}`;
   }
 
+  // Pastel colors matching TempPro measuring spoons (sizes stored in teaspoons).
+  const SPOON_DOTS = [
+    { tsp: 1 / 16, color: "#d4789c", label: "1/16 tsp" },
+    { tsp: 1 / 8, color: "#f0b27a", label: "1/8 tsp" },
+    { tsp: 1 / 4, color: "#c9a9e0", label: "1/4 tsp" },
+    { tsp: 1 / 2, color: "#efe6a3", label: "1/2 tsp" },
+    { tsp: 3 / 4, color: "#6b8bb8", label: "3/4 tsp" },
+    { tsp: 1, color: "#a8d5a2", label: "1 tsp" },
+    { tsp: 1.5, color: "#9ccfe0", label: "1/2 Tbsp" },
+    { tsp: 3, color: "#e89090", label: "1 Tbsp" },
+  ];
+
+  function spoonDotForIngredient(item, scale) {
+    if (item.quantity == null || !item.unit || !item.unit.def) return null;
+    const singular = item.unit.def.singular;
+    if (singular !== "teaspoon" && singular !== "tablespoon") return null;
+
+    const qty = item.quantity * scale;
+    const tsp = singular === "tablespoon" ? qty * 3 : qty;
+    const eps = 1e-6;
+
+    for (const spoon of SPOON_DOTS) {
+      if (Math.abs(tsp - spoon.tsp) < eps) return spoon;
+    }
+
+    // Multiples of 1 Tbsp (e.g. 2 Tbsp) → use the 1 Tbsp spoon repeatedly.
+    if (tsp >= 3 - eps) {
+      const rem = ((tsp % 3) + 3) % 3;
+      if (rem < eps || Math.abs(rem - 3) < eps) {
+        return SPOON_DOTS.find((s) => Math.abs(s.tsp - 3) < eps);
+      }
+    }
+
+    // Multiples of 1 tsp (e.g. 2 tsp) → use the 1 tsp spoon repeatedly.
+    if (tsp >= 1 - eps) {
+      const rem = ((tsp % 1) + 1) % 1;
+      if (rem < eps || Math.abs(rem - 1) < eps) {
+        return SPOON_DOTS.find((s) => Math.abs(s.tsp - 1) < eps);
+      }
+    }
+
+    return null;
+  }
+
+  function spoonDotHtml(spoon) {
+    if (!spoon) return `<span class="spoon-dot spoon-dot-empty" aria-hidden="true"></span>`;
+    return `<span class="spoon-dot" style="background:${spoon.color}" title="${h(spoon.label)}" aria-label="${h(spoon.label)} measuring spoon"></span>`;
+  }
+
   function renderCookIngredients(groups, scale, scaledStyle) {
     return groups
       .map((g, gi) => {
@@ -415,15 +464,17 @@
             const body = fmt.qtyHtml
               ? `<span class="qty${fmt.scaled ? " qty-scaled" : ""}">${fmt.qtyHtml}</span><span class="ing-rest">${fmt.restHtml}</span>`
               : `<span class="ing-rest">${fmt.html}</span>`;
+            const spoon = spoonDotForIngredient(item, scale);
             return `<li class="cook-item${checked ? " done" : ""}">
               <label>
                 <input type="checkbox" data-cook-check data-kind="ingredients" data-id="${id}"${checked ? " checked" : ""}>
+                ${spoonDotHtml(spoon)}
                 <span class="cook-item-body${fmt.qtyHtml ? "" : " plain"}">${body}</span>
               </label>
             </li>`;
           })
           .join("");
-        return `${heading}<ul class="cook-list">${items}</ul>`;
+        return `${heading}<ul class="cook-list cook-ings">${items}</ul>`;
       })
       .join("");
   }

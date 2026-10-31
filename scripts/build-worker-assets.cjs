@@ -8,8 +8,13 @@ for(const name of ["index.html","css","js","images","assets","public-login"]){
  const src=path.join(root,name);
  if(fs.existsSync(src))fs.cpSync(src,path.join(out,name),{recursive:true});
 }
-// Deliberately omit sw.js: the legacy offline cache can bypass the auth gate.
-// Existing registration in index.html will fail safely until replaced.
+// Deliberately omit sw.js and remove its registration from the Cloudflare build.
+const indexPath=path.join(out,"index.html");
+let index=fs.readFileSync(indexPath,"utf8");
+index=index.replace(/    <script>\s*if \("serviceWorker" in navigator\) \{[\s\S]*?\}\s*<\/script>/,
+  '    <script>if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));</script>');
+fs.writeFileSync(indexPath,index);
+
 // Login resources must be available at their public URLs while unauthenticated.
 fs.copyFileSync(path.join(out,"public-login","login.html"),path.join(out,"login.html"));
 fs.copyFileSync(path.join(out,"public-login","login.js"),path.join(out,"login.js"));

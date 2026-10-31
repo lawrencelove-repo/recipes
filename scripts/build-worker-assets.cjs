@@ -12,7 +12,7 @@ for(const name of ["index.html","css","js","images","assets","public-login"]){
 const indexPath=path.join(out,"index.html");
 let index=fs.readFileSync(indexPath,"utf8");
 index=index.replace('    <script src="js/db.js"></script>',
-  '    <script>window.RECIPES_CLOUDFLARE = true;</script>\\n    <script src="js/db.js"></script>');
+  '    <script>window.RECIPES_CLOUDFLARE = true;</script>\n    <script src="js/db.js"></script>');
 index=index.replace(/    <script>\s*if \("serviceWorker" in navigator\) \{[\s\S]*?\}\s*<\/script>/,
   '    <script>if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));</script>');
 fs.writeFileSync(indexPath,index);

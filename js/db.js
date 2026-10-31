@@ -193,6 +193,7 @@
   }
 
   async function persist() {
+    if (cloudMode) return;
     const data = db.export();
     await idbSet(DB_KEY, data);
   }
@@ -255,12 +256,42 @@
     };
   }
 
+  // On Cloudflare, D1 is authoritative. sql.js remains an in-memory view
+  // so the existing synchronous UI and filtering continue to work.
+  const cloudMode = location.hostname.endsWith(".workers.dev");
+  async function remote(method, path, body) {
+    const response = await fetch(path, {
+      method, credentials: "same-origin",
+      headers: body ? {"Content-Type":"application/json"} : {},
+      body: body ? JSON.stringify(body) : undefined,
+      cache: "no-store"
+    });
+    if (!response.ok) throw new Error("Recipes server request failed ("+response.status+")");
+    return response.json();
+  }
+  async function reloadRemote() {
+    const snapshot = await remote("GET", "/api/recipes/snapshot");
+    const fresh = new SQL.Database();
+    fresh.run("PRAGMA foreign_keys = ON");
+    fresh.run(SEED_SQL);
+    for (const name of ["recipes","ingredient_groups","ingredients","instruction_groups","instruction_steps"]) {
+      for (const row of snapshot.tables?.[name] || []) {
+        const cols = Object.keys(row);
+        fresh.run("INSERT INTO "+name+" ("+cols.join(",")+") VALUES ("+cols.map(()=>"?").join(",")+")",
+          cols.map(k=>row[k]));
+      }
+    }
+    const previous = db;
+    db = fresh;
+    if (previous) previous.close();
+  }
   const api = {
     async init() {
       SQL = await initSqlJs({
         locateFile: (file) =>
           `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.11.0/${file}`,
       });
+      if (cloudMode) { await reloadRemote(); return; }
       const saved = await idbGet(DB_KEY);
       if (saved) {
         db = new SQL.Database(new Uint8Array(saved));
@@ -352,6 +383,15 @@
     },
 
     async saveRecipe(recipe) {
+      if (cloudMode) {
+        const ingredientGroups=global.RecipeParser.parseIngredientsText(recipe.ingredients_raw||"");
+        const instructionGroups=global.RecipeParser.parseInstructionsText(recipe.instructions_raw||"");
+        const result=await remote(recipe.id?"PUT":"POST",recipe.id?"/api/recipes/"+recipe.id:"/api/recipes",
+          {recipe,ingredientGroups,instructionGroups});
+        await reloadRemote();
+        return result.id;
+      }
+
       const title = (recipe.title || "").trim();
       if (!title) throw new Error("Title is required.");
       const payload = {
@@ -407,6 +447,8 @@
     },
 
     async toggleFavorite(id, value) {
+      if (cloudMode) { await remote("PATCH","/api/recipes/"+id,{favorite:!!value}); await reloadRemote(); return; }
+
       exec("UPDATE recipes SET favorite = ?, updated_at = ? WHERE id = ?", [
         value ? 1 : 0,
         nowIso(),
@@ -416,6 +458,8 @@
     },
 
     async toggleEnabled(id, value) {
+      if (cloudMode) { await remote("PATCH","/api/recipes/"+id,{enabled:!!value}); await reloadRemote(); return; }
+
       exec("UPDATE recipes SET enabled = ?, updated_at = ? WHERE id = ?", [
         value ? 1 : 0,
         nowIso(),
@@ -425,6 +469,8 @@
     },
 
     async deleteRecipe(id) {
+      if (cloudMode) { await remote("DELETE","/api/recipes/"+id); await reloadRemote(); return; }
+
       const recipeId = Number(id);
       if (!recipeId) throw new Error("Missing recipe id.");
       exec("DELETE FROM instruction_steps WHERE recipe_id = ?", [recipeId]);

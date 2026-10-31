@@ -67,6 +67,22 @@ jobs:
               "/user/tokens/verify"
           )
 
+
+          accounts = check(
+              "1b. Accounts visible to this token",
+              "/accounts"
+          )
+
+          if accounts:
+              for account in accounts.get("result", []):
+                  print(
+                      "Account:",
+                      account.get("name"),
+                      "ID:",
+                      account.get("id")
+                  )
+     
+
           check(
               "2. Cloudflare account access",
               "/accounts/" + account

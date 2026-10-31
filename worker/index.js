@@ -89,8 +89,7 @@ export default {
    if(path.startsWith("/api/"))return json({error:loggedIn?"Not implemented":"Unauthorized"},loggedIn?404:401);
    if(!loggedIn){
      if(path==="/login.js" || path==="/login.html"){
-       const destination=new URL("/public-login"+path,url);
-       return env.ASSETS.fetch(new Request(destination,request));
+       return env.ASSETS.fetch(request);
      }
      if(path==="/" || path==="/index.html" || request.headers.get("Accept")?.includes("text/html"))
        return Response.redirect(new URL("/login.html",url),302);

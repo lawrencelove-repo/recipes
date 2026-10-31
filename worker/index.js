@@ -1,3 +1,4 @@
+import { writeRecipe } from "./recipe-write.js";
 const ADDRESS = "lawrencelove@yahoo.com";
 const COOKIE = "recipes_session";
 const encoder = new TextEncoder();
@@ -92,6 +93,11 @@ export default {
      const names=["recipes","ingredient_groups","ingredients","instruction_groups","instruction_steps"];
      const results=await Promise.all(names.map(name=>env.DB.prepare("SELECT * FROM "+name).all()));
      return json({tables:Object.fromEntries(names.map((name,i)=>[name,results[i].results||[]]))});
+   }
+   if(loggedIn && ((path==="/api/recipes" && request.method==="POST") ||
+      (/^\\/api\\/recipes\\/\\d+$/.test(path) && request.method==="PUT"))){
+     const id=request.method==="PUT"?Number(path.split("/").pop()):null;
+     return writeRecipe(request,env,id);
    }
    const recipePath=path.match(/^\/api\/recipes\/(\d+)$/);
    if(recipePath && loggedIn && (request.method==="PATCH" || request.method==="DELETE")){

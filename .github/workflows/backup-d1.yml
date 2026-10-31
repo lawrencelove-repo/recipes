@@ -31,7 +31,10 @@ jobs:
           sqlite3 /tmp/recipes-d1-export.sqlite < /tmp/recipes-d1-full.sql
           sqlite3 /tmp/recipes-d1-export.sqlite "PRAGMA integrity_check;" | grep -qx ok
           # Export only recipe-related tables and their schema/indexes.
-          sqlite3 /tmp/recipes-d1-export.sqlite ".dump recipes ingredient_groups ingredients instruction_groups instruction_steps" > backup/recipes-data.sql
+          : > backup/recipes-data.sql
+          for t in recipes ingredient_groups ingredients instruction_groups instruction_steps; do
+            sqlite3 /tmp/recipes-d1-export.sqlite ".dump $t" >> backup/recipes-data.sql
+          done
           test -s backup/recipes-data.sql
           # Verify the sanitized SQL can restore to a fresh isolated SQLite database.
           sqlite3 /tmp/recipes-d1-restore-test.sqlite < backup/recipes-data.sql

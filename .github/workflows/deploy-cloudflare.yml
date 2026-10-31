@@ -1,12 +1,46 @@
-name: Deploy Recipes (manual)
+name: Deploy Recipes
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: recipes-production-deploy
+  cancel-in-progress: false
+
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check JavaScript syntax
+        run: |
+          node --check worker/index.js
+          node --check worker/recipe-write.js
+          node --check js/db.js
+          node --check scripts/build-worker-assets.cjs
+      - run: npm install --no-audit --no-fund
+      - name: Build and verify static assets
+        run: |
+          npm run build
+          test -f dist/index.html
+          test -f dist/login.html
+          test -f dist/js/db.js
+          grep -q 'RECIPES_CLOUDFLARE = true' dist/index.html
+          test ! -e dist/sw.js
+          ! grep -q 'navigator.serviceWorker.register' dist/index.html
+      - name: Validate Wrangler configuration
+        run: npx wrangler deploy --dry-run --outdir /tmp/recipes-worker-check
+
   deploy:
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

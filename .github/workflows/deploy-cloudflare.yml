@@ -14,6 +14,8 @@ jobs:
         with:
           node-version: "22"
       - run: npm install --no-audit --no-fund
+      - name: Build curated static assets
+        run: npm run build
       - name: Apply D1 migrations
         run: npx wrangler d1 migrations apply recipes-db --remote
         env:

@@ -31,6 +31,7 @@ jobs:
           test -f dist/index.html
           test -f dist/login.html
           test -f dist/js/db.js
+          grep -q "RECIPES_CLOUDFLARE = true" dist/index.html
           test ! -e dist/sw.js
           ! grep -q 'navigator.serviceWorker.register' dist/index.html
       - name: Validate Wrangler configuration

@@ -1,0 +1,37 @@
+name: Validate Recipes Cloudflare branch
+on:
+  push:
+    branches:
+      - feature/cloudflare-d1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check JavaScript syntax
+        run: |
+          node --check worker/index.js
+          node --check worker/recipe-write.js
+          node --check js/db.js
+          node --check scripts/build-worker-assets.cjs
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build Cloudflare assets
+        run: npm run build
+      - name: Verify Cloudflare assets and no legacy service worker
+        run: |
+          test -f dist/index.html
+          test -f dist/login.html
+          test -f dist/js/db.js
+          test ! -e dist/sw.js
+          ! grep -q 'navigator.serviceWorker.register' dist/index.html
+      - name: Validate Wrangler configuration
+        run: npx wrangler deploy --dry-run --outdir /tmp/recipes-worker-check

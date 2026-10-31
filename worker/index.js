@@ -86,6 +86,20 @@ export default {
    }
    const loggedIn=await authorized(request,env,now);
    if(path==="/api/auth/me" && request.method==="GET")return json({authenticated:loggedIn});
+   if(path==="/api/recipes" && request.method==="GET" && loggedIn){
+     const rows=await env.DB.prepare("SELECT * FROM recipes ORDER BY title COLLATE NOCASE").all();
+     return json({recipes:rows.results||[]});
+   }
+   if(/^\\/api\\/recipes\\/\\d+$/.test(path) && request.method==="GET" && loggedIn){
+     const id=Number(path.split("/").pop());
+     const recipe=await env.DB.prepare("SELECT * FROM recipes WHERE id=?").bind(id).first();
+     if(!recipe)return json({error:"Recipe not found"},404);
+     const [ingredients,instructions]=await Promise.all([
+       env.DB.prepare("SELECT g.id AS group_id,g.heading,g.sort_order AS group_order,i.* FROM ingredient_groups g LEFT JOIN ingredients i ON i.group_id=g.id WHERE g.recipe_id=? ORDER BY g.sort_order,i.sort_order").bind(id).all(),
+       env.DB.prepare("SELECT g.id AS group_id,g.heading,g.sort_order AS group_order,s.* FROM instruction_groups g LEFT JOIN instruction_steps s ON s.group_id=g.id WHERE g.recipe_id=? ORDER BY g.sort_order,s.sort_order").bind(id).all()
+     ]);
+     return json({recipe,ingredients:ingredients.results||[],instructions:instructions.results||[]});
+   }
    if(path.startsWith("/api/"))return json({error:loggedIn?"Not implemented":"Unauthorized"},loggedIn?404:401);
    if(!loggedIn){
      if(path==="/login.js" || path==="/login.html"){

@@ -95,7 +95,7 @@ export default {
      return json({tables:Object.fromEntries(names.map((name,i)=>[name,results[i].results||[]]))});
    }
    if(loggedIn && ((path==="/api/recipes" && request.method==="POST") ||
-      (/^\\/api\\/recipes\\/\\d+$/.test(path) && request.method==="PUT"))){
+      (/^\/api\/recipes\/\d+$/.test(path) && request.method==="PUT"))){
      const id=request.method==="PUT"?Number(path.split("/").pop()):null;
      return writeRecipe(request,env,id);
    }

@@ -90,7 +90,7 @@ export default {
      const rows=await env.DB.prepare("SELECT * FROM recipes ORDER BY title COLLATE NOCASE").all();
      return json({recipes:rows.results||[]});
    }
-   if(/^\\/api\\/recipes\\/\\d+$/.test(path) && request.method==="GET" && loggedIn){
+   if(/^\/api\/recipes\/\d+$/.test(path) && request.method==="GET" && loggedIn){
      const id=Number(path.split("/").pop());
      const recipe=await env.DB.prepare("SELECT * FROM recipes WHERE id=?").bind(id).first();
      if(!recipe)return json({error:"Recipe not found"},404);

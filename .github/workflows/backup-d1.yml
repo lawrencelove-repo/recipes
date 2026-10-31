@@ -1,0 +1,59 @@
+name: Backup Recipes D1 (manual)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Wrangler
+        run: npm install --no-audit --no-fund
+      - name: Export production D1 and create recipe-only backup
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: bfe38ff4f7a7cff066e54569c3b2560b
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p backup
+          # Raw export remains only on the ephemeral runner. Never upload it:
+          # it may contain login codes, sessions, and authentication metadata.
+          npx wrangler d1 export recipes-db --remote --output /tmp/recipes-d1-full.sql
+          sqlite3 /tmp/recipes-d1-export.sqlite < /tmp/recipes-d1-full.sql
+          sqlite3 /tmp/recipes-d1-export.sqlite "PRAGMA integrity_check;" | grep -qx ok
+          # Export only recipe-related tables and their schema/indexes.
+          sqlite3 /tmp/recipes-d1-export.sqlite ".dump recipes ingredient_groups ingredients instruction_groups instruction_steps" > backup/recipes-data.sql
+          test -s backup/recipes-data.sql
+          # Verify the sanitized SQL can restore to a fresh isolated SQLite database.
+          sqlite3 /tmp/recipes-d1-restore-test.sqlite < backup/recipes-data.sql
+          sqlite3 /tmp/recipes-d1-restore-test.sqlite "PRAGMA integrity_check;" | grep -qx ok
+          fk_violations="$(sqlite3 /tmp/recipes-d1-restore-test.sqlite 'PRAGMA foreign_key_check;' | wc -l)"
+          test "$fk_violations" -eq 0
+          {
+            echo "Backup created (UTC): $(date -u +%FT%TZ)"
+            echo "Source: Cloudflare D1 recipes-db"
+            echo "Scope: recipe data only; excludes login_codes, sessions, login_requests"
+            echo "Integrity: ok; foreign-key violations: 0"
+            echo
+            for t in recipes ingredient_groups ingredients instruction_groups instruction_steps; do
+              printf '%s: ' "$t"
+              sqlite3 /tmp/recipes-d1-restore-test.sqlite "SELECT COUNT(*) FROM $t;"
+            done
+          } > backup/README.txt
+          sha256sum backup/recipes-data.sql > backup/SHA256SUMS
+      - name: Upload sanitized recipe backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: recipes-d1-recipe-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error

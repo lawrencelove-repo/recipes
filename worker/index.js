@@ -135,11 +135,11 @@ export default {
    }
    if(path.startsWith("/api/"))return json({error:loggedIn?"Not implemented":"Unauthorized"},loggedIn?404:401);
    if(!loggedIn){
-     if(path==="/login.js" || path==="/login.html"){
+     if(path==="/login.js" || path==="/login.html" || path==="/login"){
        return env.ASSETS.fetch(request);
      }
      if(path==="/" || path==="/index.html" || request.headers.get("Accept")?.includes("text/html"))
-       return Response.redirect(new URL("/login.html",url),302);
+       return Response.redirect(new URL("/login",url),302);
      return json({error:"Unauthorized"},401);
    }
    // Never expose source/configuration files via the broad static-assets directory.

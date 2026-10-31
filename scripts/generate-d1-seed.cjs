@@ -34,6 +34,46 @@ const rows = recipes.map((r,i) => {
   return "(" + fields.map(f => sqlValue(record[f] ?? (f === "id" ? i+1 : ""))).join(", ") + ")";
 });
 statements.push(rows.join(",\n") + ";");
+
+for (const name of ["units.js","parser.js"]) {
+  vm.runInNewContext(fs.readFileSync(path.join(root,"js",name),"utf8"),sandbox,{timeout:3000,filename:name});
+}
+const parser=sandbox.window.RecipeParser;
+if (!parser || !parser.parseIngredientsText || !parser.parseInstructionsText)
+  throw new Error("RecipeParser was not initialized");
+let ingredientGroupId=0,ingredientId=0,instructionGroupId=0,instructionId=0;
+function insert(table, columns, values) {
+  statements.push("INSERT INTO "+table+" ("+columns.join(",")+") VALUES ("+values.map(sqlValue).join(",")+");");
+}
+recipes.forEach((recipe,index)=>{
+  const recipeId=index+1;
+  parser.parseInstructionsText(recipe.instructions_raw||"").forEach((group,groupIndex)=>{
+    const groupId=++instructionGroupId;
+    insert("instruction_groups",["id","recipe_id","heading","sort_order"],
+      [groupId,recipeId,group.heading||"",groupIndex]);
+    (group.steps||[]).forEach((step,stepIndex)=>{
+      insert("instruction_steps",["id","recipe_id","group_id","body","trailing_breaks","sort_order"],
+        [++instructionId,recipeId,groupId,step.text||"",step.trailingBreaks||0,stepIndex]);
+    });
+  });
+  parser.parseIngredientsText(recipe.ingredients_raw||"").forEach((group,groupIndex)=>{
+    const groupId=++ingredientGroupId;
+    insert("ingredient_groups",["id","recipe_id","heading","sort_order"],
+      [groupId,recipeId,group.heading||"",groupIndex]);
+    (group.items||[]).forEach((item,itemIndex)=>{
+      const unit=item.unit;
+      insert("ingredients",["id","recipe_id","group_id","quantity","quantity_raw","rest",
+        "unit_singular","unit_plural","unit_original","unit_index","unit_token_count",
+        "unit_is_abbrev","recognized","raw_line","sort_order"],
+        [++ingredientId,recipeId,groupId,item.quantity??null,item.quantityRaw||"",item.rest||"",
+         unit?.def?.singular??null,unit?.def?.plural??null,unit?.original??null,
+         unit?.index??null,unit?.tokenCount??null,unit?.isAbbrev?1:0,
+         item.recognized||0,item.raw||"",itemIndex]);
+    });
+  });
+});
+console.log("Parsed "+ingredientId+" ingredients and "+instructionId+" instruction steps");
+
 const target = path.join(root, "migrations/0002_seed_recipes.sql");
 fs.writeFileSync(target, statements.join("\n") + "\n");
 console.log("Generated D1 seed migration for " + recipes.length + " recipes at " + target);

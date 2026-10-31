@@ -1,12 +1,36 @@
 name: Import original recipes into Cloudflare D1
 on:
   workflow_dispatch:
+  push:
+    branches: [feature/cloudflare-d1]
+    paths:
+      - .github/workflows/import-d1.yml
 
 permissions:
   contents: read
 
 jobs:
+  validate:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Generate and validate seed without contacting Cloudflare
+        run: |
+          node scripts/generate-d1-seed.cjs
+          python3 - <<'PY'
+          import sqlite3
+          con=sqlite3.connect(":memory:")
+          con.executescript(open("migrations/0001_recipes.sql",encoding="utf8").read())
+          con.executescript(open("migrations/0002_seed_recipes.sql",encoding="utf8").read())
+          assert con.execute("SELECT COUNT(*) FROM recipes").fetchone()[0]>0
+          print("Import workflow validation passed; no D1 changes")
+          PY
   import:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

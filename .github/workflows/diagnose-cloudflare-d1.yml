@@ -13,7 +13,7 @@ jobs:
 
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CF_ACCOUNT_ID: bfe38ff4f7a7cff066e54569c3b2560
+      CF_ACCOUNT_ID: bfe38ff4f7a7cff066e54569c3b2560b
       CF_DB_ID: 08b0784e-e97a-4b2b-bdd7-5c744fcb2288
 
     steps:

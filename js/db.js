@@ -258,7 +258,7 @@
 
   // On Cloudflare, D1 is authoritative. sql.js remains an in-memory view
   // so the existing synchronous UI and filtering continue to work.
-  const cloudMode = location.hostname.endsWith(".workers.dev");
+  const cloudMode = global.RECIPES_CLOUDFLARE === true;
   async function remote(method, path, body) {
     const response = await fetch(path, {
       method, credentials: "same-origin",

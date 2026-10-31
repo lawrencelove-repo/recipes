@@ -1,0 +1,52 @@
+name: Import original recipes into Cloudflare D1
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: bfe38ff4f7a7cff066e54569c3b2560
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Wrangler
+        run: npm install
+      - name: Generate D1 seed
+        run: node scripts/generate-d1-seed.cjs
+      - name: Validate generated seed locally
+        run: |
+          python3 - <<'PY'
+          import sqlite3
+          con=sqlite3.connect(":memory:")
+          con.executescript(open("migrations/0001_recipes.sql",encoding="utf8").read())
+          con.executescript(open("migrations/0002_seed_recipes.sql",encoding="utf8").read())
+          for table in ("recipes","ingredient_groups","ingredients","instruction_groups","instruction_steps"):
+              count=con.execute("SELECT COUNT(*) FROM "+table).fetchone()[0]
+              print(f"{table}: {count}")
+              assert count>0
+          PY
+      - name: Apply schema only (0001)
+        run: npx wrangler d1 execute recipes-db --remote --file migrations/0001_recipes.sql
+      - name: Refuse import if destination is not empty
+        run: |
+          npx wrangler d1 execute recipes-db --remote --command "SELECT CASE WHEN (SELECT COUNT(*) FROM recipes)=0 THEN 'EMPTY' ELSE 'NOT_EMPTY' END AS import_status" --json > d1-check.json
+          python3 - <<'PY'
+          import json
+          payload=json.load(open("d1-check.json"))
+          rows=payload[0].get("results",[])
+          assert rows and rows[0].get("import_status")=="EMPTY", "D1 recipes table is not empty; import cancelled"
+          print("Destination empty; import permitted")
+          PY
+      - name: Import original recipe seed
+        run: npx wrangler d1 execute recipes-db --remote --file migrations/0002_seed_recipes.sql
+      - name: Apply authentication schema
+        run: npx wrangler d1 execute recipes-db --remote --file migrations/0003_auth.sql
+      - name: Verify imported counts
+        run: npx wrangler d1 execute recipes-db --remote --command "SELECT (SELECT COUNT(*) FROM recipes) AS recipes, (SELECT COUNT(*) FROM ingredients) AS ingredients, (SELECT COUNT(*) FROM instruction_steps) AS steps"

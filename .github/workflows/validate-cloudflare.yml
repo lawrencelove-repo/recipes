@@ -2,6 +2,7 @@ name: Validate Recipes Cloudflare branch
 on:
   push:
     branches:
+      - main
       - feature/cloudflare-d1
   workflow_dispatch:
 

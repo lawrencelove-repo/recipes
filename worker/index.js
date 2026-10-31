@@ -1,5 +1,5 @@
 import { writeRecipe } from "./recipe-write.js";
-const ADDRESS = "lawrencelove@yahoo.com";
+const ADDRESS = "lawrencelove@gmail.com";
 const COOKIE = "recipes_session";
 const encoder = new TextEncoder();
 const json = (value, status=200, headers={}) => Response.json(value,{status,headers:{"Cache-Control":"no-store",...headers}});

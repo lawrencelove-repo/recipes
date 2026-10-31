@@ -86,6 +86,33 @@ export default {
    }
    const loggedIn=await authorized(request,env,now);
    if(path==="/api/auth/me" && request.method==="GET")return json({authenticated:loggedIn});
+   // Full, authenticated D1 snapshot for the existing synchronous recipe UI.
+   // Client migration can hydrate its in-memory SQLite model from these rows.
+   if(path==="/api/recipes/snapshot" && request.method==="GET" && loggedIn){
+     const names=["recipes","ingredient_groups","ingredients","instruction_groups","instruction_steps"];
+     const results=await Promise.all(names.map(name=>env.DB.prepare("SELECT * FROM "+name).all()));
+     return json({tables:Object.fromEntries(names.map((name,i)=>[name,results[i].results||[]]))});
+   }
+   const recipePath=path.match(/^\/api\/recipes\/(\d+)$/);
+   if(recipePath && loggedIn && (request.method==="PATCH" || request.method==="DELETE")){
+     const id=Number(recipePath[1]);
+     const existing=await env.DB.prepare("SELECT id FROM recipes WHERE id=?").bind(id).first();
+     if(!existing)return json({error:"Recipe not found"},404);
+     if(request.method==="DELETE"){
+       // Child records have ON DELETE CASCADE foreign keys.
+       await env.DB.prepare("DELETE FROM recipes WHERE id=?").bind(id).run();
+       return json({ok:true});
+     }
+     const body=await readBody(request);
+     if(!body || typeof body!=="object" || Array.isArray(body))return json({error:"Invalid request"},400);
+     const keys=Object.keys(body);
+     if(keys.length!==1 || !["favorite","enabled"].includes(keys[0]) || typeof body[keys[0]]!=="boolean")
+       return json({error:"Expected one boolean field: favorite or enabled"},400);
+     const field=keys[0],value=body[field]?1:0;
+     await env.DB.prepare("UPDATE recipes SET "+field+"=?,updated_at=? WHERE id=?")
+       .bind(value,new Date().toISOString(),id).run();
+     return json({ok:true,id,[field]:!!value});
+   }
    if(path==="/api/recipes" && request.method==="GET" && loggedIn){
      const rows=await env.DB.prepare("SELECT * FROM recipes ORDER BY title COLLATE NOCASE").all();
      return json({recipes:rows.results||[]});

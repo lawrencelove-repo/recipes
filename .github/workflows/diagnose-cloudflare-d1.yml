@@ -1,0 +1,92 @@
+
+name: Diagnose Cloudflare D1 Access
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT_ID: bfe38ff4f7a7cff066e54569c3b2560
+      CF_DB_ID: 08b0784e-e97a-4b2b-bdd7-5c744fcb2288
+
+    steps:
+      - name: Check Cloudflare API access
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+          import urllib.error
+
+          token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
+          account = os.environ["CF_ACCOUNT_ID"]
+          database = os.environ["CF_DB_ID"]
+
+          if not token:
+              raise SystemExit("ERROR: GitHub API token secret is missing")
+
+          base = "https://api.cloudflare.com/client/v4"
+
+          def check(label, endpoint):
+              req = urllib.request.Request(
+                  base + endpoint,
+                  headers={
+                      "Authorization": "Bearer " + token,
+                      "Accept": "application/json"
+                  }
+              )
+
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      status = response.status
+                      data = json.load(response)
+              except urllib.error.HTTPError as error:
+                  status = error.code
+                  data = json.loads(error.read().decode("utf-8"))
+
+              print("\n" + label)
+              print("HTTP status:", status)
+              print("Success:", data.get("success"))
+
+              for error in data.get("errors", []):
+                  print("Error code:", error.get("code"))
+                  print("Message:", error.get("message"))
+
+              return data if data.get("success") else None
+
+          check(
+              "1. Token verification",
+              "/user/tokens/verify"
+          )
+
+          check(
+              "2. Cloudflare account access",
+              "/accounts/" + account
+          )
+
+          check(
+              "3. D1 database listing",
+              "/accounts/" + account + "/d1/database"
+          )
+
+          result = check(
+              "4. D1 database details",
+              "/accounts/" + account + "/d1/database/" + database
+          )
+
+          if result:
+              details = result.get("result", {})
+              print("\nDatabase name:", details.get("name"))
+              print("Database ID matches:",
+                    details.get("uuid") == database)
+
+          print("\nDiagnostics completed. No changes made.")
+          PY

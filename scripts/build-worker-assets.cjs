@@ -10,4 +10,7 @@ for(const name of ["index.html","css","js","images","assets","public-login"]){
 }
 // Deliberately omit sw.js: the legacy offline cache can bypass the auth gate.
 // Existing registration in index.html will fail safely until replaced.
+// Login resources must be available at their public URLs while unauthenticated.
+fs.copyFileSync(path.join(out,"public-login","login.html"),path.join(out,"login.html"));
+fs.copyFileSync(path.join(out,"public-login","login.js"),path.join(out,"login.js"));
 console.log("Built curated Worker assets in dist/");

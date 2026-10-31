@@ -101,6 +101,7 @@ export default {
       path.startsWith("/.github/")||path.startsWith("/public-login/")||
       ["/wrangler.jsonc","/package.json","/CLOUDFLARE_MIGRATION.md"].includes(path))
      return json({error:"Not found"},404);
+   if(path==="/sw.js") return json({error:"Not found"},404);
    return env.ASSETS.fetch(request);
   }catch(error){return json({error:"Request could not be completed"},500);}
  }

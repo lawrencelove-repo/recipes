@@ -74,9 +74,9 @@ jobs:
           )
 
           if accounts:
-              for account in accounts.get("result", []):
-              print("Account ID:", repr(account.get("id")))
-              print("Account ID length:", len(account.get("id", "")))
+              for account_item in accounts.get("result", []):
+                  print("Account ID:", repr(account_item.get("id")))
+                  print("Account ID length:", len(account_item.get("id", "")))
      
 
           check(

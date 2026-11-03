@@ -25,6 +25,8 @@ jobs:
           node --check worker/index.js
           node --check worker/recipe-write.js
           node --check js/db.js
+          node --check js/parser.js
+          node --check js/app.js
           node --check scripts/build-worker-assets.cjs
       - run: npm install --no-audit --no-fund
       - name: Build and verify static assets

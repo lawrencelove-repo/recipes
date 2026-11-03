@@ -389,6 +389,8 @@
           .map((item) => {
             const parsed = {
               quantity: item.quantity,
+              quantityMax: item.quantityMax,
+              quantityRaw: item.quantityRaw,
               rest: item.rest,
               unit: item.unit,
               raw: item.raw,
@@ -490,13 +492,16 @@
   function formatCookSpoonIngredient(item, scale, spoonMode, scaledStyle) {
     const parsed = {
       quantity: item.quantity,
+      quantityMax: item.quantityMax,
+      quantityRaw: item.quantityRaw,
       rest: item.rest,
       unit: item.unit,
       raw: item.raw,
     };
     const singular = item.unit && item.unit.def ? item.unit.def.singular : null;
     const isSpoon = singular === "teaspoon" || singular === "tablespoon";
-    if (!isSpoon || item.quantity == null) {
+    // Spoon-dot conversion is for a single amount; ranges use normal formatting.
+    if (!isSpoon || item.quantity == null || item.quantityMax != null) {
       return {
         fmt: RecipeParser.formatIngredientParts(parsed, scale, { scaledStyle }),
         spoon: null,
@@ -1294,6 +1299,8 @@
         const fmt = RecipeParser.formatIngredientParts(
           {
             quantity: item.quantity,
+            quantityMax: item.quantityMax,
+            quantityRaw: item.quantityRaw,
             rest: item.rest,
             unit: item.unit,
             raw: item.raw,

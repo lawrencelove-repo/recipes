@@ -3,7 +3,7 @@
   const IDB_STORE = "kv";
   const DB_KEY = "database";
   // Bump when schema or shipped seed set changes (forces local DB rebuild).
-  const SCHEMA_VERSION = 4;
+  const SCHEMA_VERSION = 5;
 
   const SEED_SQL = `
     CREATE TABLE IF NOT EXISTS meta (
@@ -346,22 +346,39 @@
         items: query(
           "SELECT * FROM ingredients WHERE group_id = ? ORDER BY sort_order",
           [g.id]
-        ).map((row) => ({
-          quantity: row.quantity,
-          quantityRaw: row.quantity_raw,
-          rest: row.rest,
-          unit: row.unit_singular
-            ? {
-                index: row.unit_index,
-                tokenCount: row.unit_token_count,
-                def: { singular: row.unit_singular, plural: row.unit_plural },
-                isAbbrev: !!row.unit_is_abbrev,
-                original: row.unit_original,
-              }
-            : null,
-          recognized: row.recognized,
-          raw: row.raw_line,
-        })),
+        ).map((row) => {
+          // Re-parse so parser improvements (e.g. quantity ranges) apply even when
+          // stored columns were written by an older parser.
+          const live = global.RecipeParser.parseIngredientLine(row.raw_line || "");
+          if (!live.empty && live.group == null) {
+            return {
+              quantity: live.quantity,
+              quantityMax: live.quantityMax == null ? null : live.quantityMax,
+              quantityRaw: live.quantityRaw || "",
+              rest: live.rest,
+              unit: live.unit,
+              recognized: live.recognized,
+              raw: row.raw_line,
+            };
+          }
+          return {
+            quantity: row.quantity,
+            quantityMax: null,
+            quantityRaw: row.quantity_raw,
+            rest: row.rest,
+            unit: row.unit_singular
+              ? {
+                  index: row.unit_index,
+                  tokenCount: row.unit_token_count,
+                  def: { singular: row.unit_singular, plural: row.unit_plural },
+                  isAbbrev: !!row.unit_is_abbrev,
+                  original: row.unit_original,
+                }
+              : null,
+            recognized: row.recognized,
+            raw: row.raw_line,
+          };
+        }),
       }));
     },
 

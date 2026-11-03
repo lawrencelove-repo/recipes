@@ -42,8 +42,8 @@ export async function writeRecipe(request,env,id=null){
            .bind(recipeId,gid,String(item.text??""),Number(item.trailingBreaks)||0,ii));
        }else{
          const u=item.unit;
-         statements.push(env.DB.prepare("INSERT INTO ingredients (recipe_id,group_id,quantity,quantity_max,quantity_raw,rest,unit_singular,unit_plural,unit_original,unit_index,unit_token_count,unit_is_abbrev,recognized,raw_line,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-           .bind(recipeId,gid,item.quantity??null,item.quantityMax??null,item.quantityRaw||"",item.rest||"",
+         statements.push(env.DB.prepare("INSERT INTO ingredients (recipe_id,group_id,quantity,quantity_raw,rest,unit_singular,unit_plural,unit_original,unit_index,unit_token_count,unit_is_abbrev,recognized,raw_line,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+           .bind(recipeId,gid,item.quantity??null,item.quantityRaw||"",item.rest||"",
              u?.def?.singular??null,u?.def?.plural??null,u?.original??null,
              u?.index??null,u?.tokenCount??null,u?.isAbbrev?1:0,
              item.recognized?1:0,String(item.raw??""),ii));

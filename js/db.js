@@ -63,7 +63,6 @@
       recipe_id INTEGER NOT NULL,
       group_id INTEGER NOT NULL,
       quantity REAL,
-      quantity_max REAL,
       quantity_raw TEXT NOT NULL DEFAULT '',
       rest TEXT NOT NULL DEFAULT '',
       unit_singular TEXT,
@@ -168,15 +167,14 @@
       g.items.forEach((item, ii) => {
         exec(
           `INSERT INTO ingredients (
-            recipe_id, group_id, quantity, quantity_max, quantity_raw, rest,
+            recipe_id, group_id, quantity, quantity_raw, rest,
             unit_singular, unit_plural, unit_original, unit_index, unit_token_count,
             unit_is_abbrev, recognized, raw_line, sort_order
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             recipeId,
             gid,
             item.quantity,
-            item.quantityMax == null ? null : item.quantityMax,
             item.quantityRaw || "",
             item.rest || "",
             item.unit ? item.unit.def.singular : null,
@@ -365,7 +363,7 @@
           }
           return {
             quantity: row.quantity,
-            quantityMax: row.quantity_max == null ? null : row.quantity_max,
+            quantityMax: null,
             quantityRaw: row.quantity_raw,
             rest: row.rest,
             unit: row.unit_singular

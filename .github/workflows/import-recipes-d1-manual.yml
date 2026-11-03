@@ -42,7 +42,6 @@ jobs:
           con = sqlite3.connect(":memory:")
           for filename in [
               "migrations/0001_recipes.sql",
-              "migrations/0004_ingredient_quantity_max.sql",
               "migrations/0002_seed_recipes.sql"
           ]:
               with open(filename, encoding="utf-8") as f:
@@ -64,9 +63,6 @@ jobs:
 
       - name: Create D1 schema
         run: npx wrangler d1 execute recipes-db --remote --file migrations/0001_recipes.sql
-
-      - name: Add ingredient quantity_max column
-        run: npx wrangler d1 execute recipes-db --remote --file migrations/0004_ingredient_quantity_max.sql
 
       - name: Verify destination is empty
         run: |

@@ -7,7 +7,7 @@ The fixed authorized mailbox is **lawrencelove@yahoo.com**. Visitors do not choo
 1. Configure an email provider. The Worker currently uses **Resend** to send email; set up a verified sender domain and obtain an API key. A Yahoo address may be the **recipient**, but cannot be used as the sender without authorization from that domain.
 2. Set Worker secrets: `RESEND_API_KEY` and `AUTH_SECRET` (a unique cryptographically random value, at least 32 bytes). Do not commit either.
 3. Set Worker environment variable `EMAIL_FROM` to a verified sender, e.g. `Recipes <recipes@your-verified-domain.example>`. This is an example, not a configured address.
-4. Apply D1 migrations `0001_recipes.sql` and `0003_auth.sql` before deploying the Worker. `0002_seed_recipes.sql` must be generated and reviewed separately.
+4. Apply D1 migrations `0001_recipes.sql`, `0003_auth.sql`, and `0004_ingredient_quantity_max.sql` before deploying the Worker. `0002_seed_recipes.sql` must be generated and reviewed separately.
 5. Configure the Worker deployment and run end-to-end tests before sharing the URL.
 
 **Not yet deployed or tested.** The existing GitHub Pages application remains unchanged.

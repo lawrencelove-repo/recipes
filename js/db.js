@@ -3,7 +3,7 @@
   const IDB_STORE = "kv";
   const DB_KEY = "database";
   // Bump when schema or shipped seed set changes (forces local DB rebuild).
-  const SCHEMA_VERSION = 4;
+  const SCHEMA_VERSION = 5;
 
   const SEED_SQL = `
     CREATE TABLE IF NOT EXISTS meta (
@@ -63,6 +63,7 @@
       recipe_id INTEGER NOT NULL,
       group_id INTEGER NOT NULL,
       quantity REAL,
+      quantity_max REAL,
       quantity_raw TEXT NOT NULL DEFAULT '',
       rest TEXT NOT NULL DEFAULT '',
       unit_singular TEXT,
@@ -167,14 +168,15 @@
       g.items.forEach((item, ii) => {
         exec(
           `INSERT INTO ingredients (
-            recipe_id, group_id, quantity, quantity_raw, rest,
+            recipe_id, group_id, quantity, quantity_max, quantity_raw, rest,
             unit_singular, unit_plural, unit_original, unit_index, unit_token_count,
             unit_is_abbrev, recognized, raw_line, sort_order
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             recipeId,
             gid,
             item.quantity,
+            item.quantityMax == null ? null : item.quantityMax,
             item.quantityRaw || "",
             item.rest || "",
             item.unit ? item.unit.def.singular : null,
@@ -346,22 +348,39 @@
         items: query(
           "SELECT * FROM ingredients WHERE group_id = ? ORDER BY sort_order",
           [g.id]
-        ).map((row) => ({
-          quantity: row.quantity,
-          quantityRaw: row.quantity_raw,
-          rest: row.rest,
-          unit: row.unit_singular
-            ? {
-                index: row.unit_index,
-                tokenCount: row.unit_token_count,
-                def: { singular: row.unit_singular, plural: row.unit_plural },
-                isAbbrev: !!row.unit_is_abbrev,
-                original: row.unit_original,
-              }
-            : null,
-          recognized: row.recognized,
-          raw: row.raw_line,
-        })),
+        ).map((row) => {
+          // Re-parse so parser improvements (e.g. quantity ranges) apply even when
+          // stored columns were written by an older parser.
+          const live = global.RecipeParser.parseIngredientLine(row.raw_line || "");
+          if (!live.empty && live.group == null) {
+            return {
+              quantity: live.quantity,
+              quantityMax: live.quantityMax == null ? null : live.quantityMax,
+              quantityRaw: live.quantityRaw || "",
+              rest: live.rest,
+              unit: live.unit,
+              recognized: live.recognized,
+              raw: row.raw_line,
+            };
+          }
+          return {
+            quantity: row.quantity,
+            quantityMax: row.quantity_max == null ? null : row.quantity_max,
+            quantityRaw: row.quantity_raw,
+            rest: row.rest,
+            unit: row.unit_singular
+              ? {
+                  index: row.unit_index,
+                  tokenCount: row.unit_token_count,
+                  def: { singular: row.unit_singular, plural: row.unit_plural },
+                  isAbbrev: !!row.unit_is_abbrev,
+                  original: row.unit_original,
+                }
+              : null,
+            recognized: row.recognized,
+            raw: row.raw_line,
+          };
+        }),
       }));
     },
 

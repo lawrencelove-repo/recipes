@@ -62,10 +62,10 @@ recipes.forEach((recipe,index)=>{
       [groupId,recipeId,group.heading||"",groupIndex]);
     (group.items||[]).forEach((item,itemIndex)=>{
       const unit=item.unit;
-      insert("ingredients",["id","recipe_id","group_id","quantity","quantity_raw","rest",
+      insert("ingredients",["id","recipe_id","group_id","quantity","quantity_max","quantity_raw","rest",
         "unit_singular","unit_plural","unit_original","unit_index","unit_token_count",
         "unit_is_abbrev","recognized","raw_line","sort_order"],
-        [++ingredientId,recipeId,groupId,item.quantity??null,item.quantityRaw||"",item.rest||"",
+        [++ingredientId,recipeId,groupId,item.quantity??null,item.quantityMax??null,item.quantityRaw||"",item.rest||"",
          unit?.def?.singular??null,unit?.def?.plural??null,unit?.original??null,
          unit?.index??null,unit?.tokenCount??null,unit?.isAbbrev?1:0,
          item.recognized||0,item.raw||"",itemIndex]);

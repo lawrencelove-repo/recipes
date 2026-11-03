@@ -25,6 +25,7 @@ jobs:
           import sqlite3
           con=sqlite3.connect(":memory:")
           con.executescript(open("migrations/0001_recipes.sql",encoding="utf8").read())
+          con.executescript(open("migrations/0004_ingredient_quantity_max.sql",encoding="utf8").read())
           con.executescript(open("migrations/0002_seed_recipes.sql",encoding="utf8").read())
           assert con.execute("SELECT COUNT(*) FROM recipes").fetchone()[0]>0
           print("Import workflow validation passed; no D1 changes")
@@ -50,6 +51,7 @@ jobs:
           import sqlite3
           con=sqlite3.connect(":memory:")
           con.executescript(open("migrations/0001_recipes.sql",encoding="utf8").read())
+          con.executescript(open("migrations/0004_ingredient_quantity_max.sql",encoding="utf8").read())
           con.executescript(open("migrations/0002_seed_recipes.sql",encoding="utf8").read())
           for table in ("recipes","ingredient_groups","ingredients","instruction_groups","instruction_steps"):
               count=con.execute("SELECT COUNT(*) FROM "+table).fetchone()[0]
@@ -58,6 +60,8 @@ jobs:
           PY
       - name: Apply schema only (0001)
         run: npx wrangler d1 execute recipes-db --remote --file migrations/0001_recipes.sql
+      - name: Add ingredient quantity_max column (0004)
+        run: npx wrangler d1 execute recipes-db --remote --file migrations/0004_ingredient_quantity_max.sql
       - name: Refuse import if destination is not empty
         run: |
           npx wrangler d1 execute recipes-db --remote --command "SELECT CASE WHEN (SELECT COUNT(*) FROM recipes)=0 THEN 'EMPTY' ELSE 'NOT_EMPTY' END AS import_status" --json > d1-check.json

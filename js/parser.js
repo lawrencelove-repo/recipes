@@ -35,37 +35,79 @@
     [7 / 8, "7/8"],
   ];
 
-  function parseLeadingQuantity(text) {
-    const s = text.trimStart();
+  // Parse a single amount at the start of s (unicode fraction, mixed number, or decimal).
+  function parseSingleQuantity(s) {
+    if (!s) return null;
     const uni = UNICODE_FRAC[s[0]];
     if (uni != null) {
-      return { value: uni, raw: s[0], rest: s.slice(1).trimStart() };
+      return { value: uni, raw: s[0], length: 1 };
     }
 
     const mixed = s.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)/);
     if (mixed) {
-      const value = Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
-      return { value, raw: mixed[0], rest: s.slice(mixed[0].length).trimStart() };
+      return {
+        value: Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]),
+        raw: mixed[0],
+        length: mixed[0].length,
+      };
     }
 
     const mixedUni = s.match(/^(\d+)\s*([¼½¾⅓⅔⅛⅜⅝⅞⅕⅖⅗⅘⅙⅚])/);
     if (mixedUni) {
-      const value = Number(mixedUni[1]) + UNICODE_FRAC[mixedUni[2]];
-      return { value, raw: mixedUni[0], rest: s.slice(mixedUni[0].length).trimStart() };
+      return {
+        value: Number(mixedUni[1]) + UNICODE_FRAC[mixedUni[2]],
+        raw: mixedUni[0],
+        length: mixedUni[0].length,
+      };
     }
 
     const frac = s.match(/^(\d+)\s*\/\s*(\d+)/);
     if (frac) {
-      const value = Number(frac[1]) / Number(frac[2]);
-      return { value, raw: frac[0], rest: s.slice(frac[0].length).trimStart() };
+      return {
+        value: Number(frac[1]) / Number(frac[2]),
+        raw: frac[0],
+        length: frac[0].length,
+      };
     }
 
     const dec = s.match(/^(\d+\.\d+|\d+)/);
     if (dec) {
-      return { value: Number(dec[1]), raw: dec[1], rest: s.slice(dec[0].length).trimStart() };
+      return { value: Number(dec[1]), raw: dec[1], length: dec[0].length };
     }
 
     return null;
+  }
+
+  // Range connectors: "4-6", "4 – 6", "4 to 6" (not subtraction / not "extra-virgin").
+  const RANGE_CONNECTOR = /^(?:\s*[-–—]\s*|\s+to\s+)/i;
+
+  function parseLeadingQuantity(text) {
+    const s = text.trimStart();
+    const first = parseSingleQuantity(s);
+    if (!first) return null;
+
+    const afterFirst = s.slice(first.length);
+    const connector = afterFirst.match(RANGE_CONNECTOR);
+    if (connector) {
+      const second = parseSingleQuantity(afterFirst.slice(connector[0].length));
+      // Need a second amount so "4-" or "4 to taste" stay single-quantity parses.
+      if (second) {
+        const rawEnd = first.length + connector[0].length + second.length;
+        return {
+          value: first.value,
+          valueMax: second.value,
+          raw: s.slice(0, rawEnd).trimEnd(),
+          rest: s.slice(rawEnd).trimStart(),
+        };
+      }
+    }
+
+    return {
+      value: first.value,
+      valueMax: null,
+      raw: first.raw,
+      rest: s.slice(first.length).trimStart(),
+    };
   }
 
   function formatQuantity(n) {
@@ -93,6 +135,16 @@
     return sign + String(rounded);
   }
 
+  function rangeConnectorFromRaw(quantityRaw) {
+    return /\bto\b/i.test(String(quantityRaw || "")) ? " to " : "-";
+  }
+
+  function formatQuantityRange(min, max, quantityRaw) {
+    if (min == null || Number.isNaN(min)) return "";
+    if (max == null || Number.isNaN(max)) return formatQuantity(min);
+    return formatQuantity(min) + rangeConnectorFromRaw(quantityRaw) + formatQuantity(max);
+  }
+
   function isGroupHeader(line) {
     const m = line.trim().match(/^\[(.+)\]\s*$/);
     return m ? m[1].trim() : null;
@@ -110,6 +162,7 @@
     if (!qty) {
       return {
         quantity: null,
+        quantityMax: null,
         quantityRaw: "",
         rest: trimmed,
         unit: null,
@@ -125,6 +178,7 @@
 
     return {
       quantity: qty.value,
+      quantityMax: qty.valueMax == null ? null : qty.valueMax,
       quantityRaw: qty.raw,
       rest: qty.rest,
       unit: found
@@ -146,12 +200,19 @@
     if (parsed.group) return null;
 
     const qty = parsed.quantity == null ? null : parsed.quantity * scale;
+    const qtyMax =
+      parsed.quantityMax == null || parsed.quantity == null
+        ? null
+        : parsed.quantityMax * scale;
     const unscaled = Math.abs(scale - 1) < 1e-9;
+    // Prefer the high end of a range for singular/plural unit wording.
+    const qtyForUnit = qtyMax != null ? qtyMax : qty;
     const rest =
       parsed.quantity == null || unscaled || !parsed.unit
         ? parsed.rest
-        : formatRest(parsed, qty);
-    const qtyText = qty == null ? "" : formatQuantity(qty);
+        : formatRest(parsed, qtyForUnit);
+    const qtyText =
+      qty == null ? "" : formatQuantityRange(qty, qtyMax, parsed.quantityRaw);
     const text = [qtyText, rest].filter(Boolean).join(" ").trim();
 
     if (qty == null) {
@@ -269,6 +330,7 @@
   global.RecipeParser = {
     parseLeadingQuantity,
     formatQuantity,
+    formatQuantityRange,
     parseIngredientLine,
     parseIngredientsText,
     parseInstructionsText,
